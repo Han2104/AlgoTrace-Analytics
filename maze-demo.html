@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mê cung Neon 3D</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b0c1c; /* Nền tối giống hình */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #d1d5db;
+            text-shadow: 0 0 10px rgba(255,255,255,0.1);
+        }
+
+        #maze-container {
+            position: relative;
+            background-color: #171838; /* Màu nền của sàn mê cung */
+            border-radius: 24px;
+            box-shadow: 
+                0 20px 50px rgba(0, 0, 0, 0.8), 
+                inset 0 0 30px rgba(0,0,0,0.5),
+                0 0 0 8px #323561; /* Viền ngoài cùng */
+            padding: 15px;
+            box-sizing: border-box;
+            display: inline-block;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 12px;
+            /* Thêm bóng đổ nhẹ bên trong để tạo chiều sâu */
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Mô phỏng Mê cung</h1>
+        <div id="maze-container">
+            <canvas id="mazeCanvas" width="600" height="600"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mazeCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const cols = 15;
+        const rows = 15;
+        const cellSize = canvas.width / cols;
+
+        // 1: Tường, 0: Đường đi
+        const maze = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+
+        // Tọa độ đường đi (cột, hàng)
+        const pathCoords = [
+            {c: 0, r: 1}, {c: 3, r: 1}, {c: 3, r: 3}, {c: 7, r: 3}, 
+            {c: 7, r: 5}, {c: 11, r: 5}, {c: 11, r: 7}, {c: 9, r: 7},
+            {c: 9, r: 9}, {c: 13, r: 9}, {c: 13, r: 13}, {c: 14, r: 13}
+        ];
+
+        // Cấu hình màu sắc
+        const colorWallTop = '#50588e';   // Mặt trên của tường (sáng hơn)
+        const colorWallSide = '#282b54';  // Mặt bên/bóng của tường (tối hơn)
+        const colorFloor = '#171838';     // Nền đường đi
+        const colorNeon = '#39ff14';      // Màu xanh neon phát sáng
+        const colorNeonCore = '#e6ffe6';  // Lõi trắng của đường neon
+
+        function drawMaze() {
+            // Vẽ nền
+            ctx.fillStyle = colorFloor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Thêm hiệu ứng lưới mờ ở nền (tuỳ chọn)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<=cols; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i*cellSize, 0);
+                ctx.lineTo(i*cellSize, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i*cellSize);
+                ctx.lineTo(canvas.width, i*cellSize);
+                ctx.stroke();
+            }
+
+            // Vẽ tường
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (maze[r][c] === 1) {
+                        let x = c * cellSize;
+                        let y = r * cellSize;
+                        
+                        // Chiều cao khối 3D
+                        const depth = 8;
+                        const padding = 0; // Để các khối liền nhau
+
+                        // Vẽ mặt bên (phần tối)
+                        ctx.fillStyle = colorWallSide;
+                        ctx.fillRect(x + padding, y + padding + depth, cellSize - padding*2, cellSize - padding*2);
+                        
+                        // Vẽ mặt trên
+                        ctx.fillStyle = colorWallTop;
+                        ctx.fillRect(x + padding, y + padding, cellSize - padding*2, cellSize - padding*2);
+
+                        // Highlight góc cạnh để tạo khối
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'; // Cạnh trên
+                        ctx.fillRect(x + padding, y + padding, cellSize - padding*2, 3);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)'; // Cạnh trái
+                        ctx.fillRect(x + padding, y + padding, 3, cellSize - padding*2);
+                        
+                        // Bóng đổ góc dưới phải
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.fillRect(x + cellSize - padding*2 - 3, y + padding, 3, cellSize - padding*2);
+                    }
+                }
+            }
+        }
+
+        // Trạng thái hiệu ứng chuyển động
+        let progress = 0;
+        const speed = 0.03; // Tốc độ di chuyển
+
+        function drawPath() {
+            if (pathCoords.length === 0) return;
+
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            let currentSegment = Math.floor(progress);
+            let localProgress = progress - currentSegment;
+
+            if (currentSegment >= pathCoords.length - 1) {
+                currentSegment = pathCoords.length - 2;
+                localProgress = 1;
+            }
+
+            let startPoint = {
+                x: pathCoords[0].c * cellSize + cellSize / 2,
+                y: pathCoords[0].r * cellSize + cellSize / 2
+            };
+
+            ctx.beginPath();
+            ctx.moveTo(startPoint.x, startPoint.y);
+
+            // Vẽ các đoạn đã đi qua
+            for (let i = 1; i <= currentSegment; i++) {
+                ctx.lineTo(
+                    pathCoords[i].c * cellSize + cellSize / 2,
+                    pathCoords[i].r * cellSize + cellSize / 2
+                );
+            }
+
+            // Tính điểm hiện tại dựa trên tiến trình
+            let curX = startPoint.x;
+            let curY = startPoint.y;
+
+            if (currentSegment < pathCoords.length - 1) {
+                let p1 = pathCoords[currentSegment];
+                let p2 = pathCoords[currentSegment + 1];
+                let mathX = p1.c + (p2.c - p1.c) * localProgress;
+                let mathY = p1.r + (p2.r - p1.r) * localProgress;
+                
+                curX = mathX * cellSize + cellSize / 2;
+                curY = mathY * cellSize + cellSize / 2;
+                
+                ctx.lineTo(curX, curY);
+
+                // Lớp Glow mạnh bên ngoài
+                ctx.shadowColor = colorNeon;
+                ctx.shadowBlur = 25;
+                ctx.strokeStyle = colorNeon;
+                ctx.lineWidth = 12;
+                ctx.stroke();
+
+                // Lớp Glow trung bình
+                ctx.shadowBlur = 10;
+                ctx.strokeStyle = colorNeon;
+                ctx.lineWidth = 6;
+                ctx.stroke();
+
+                // Lõi sáng trắng
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = colorNeonCore;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Vẽ vòng tròn "đầu tầu" phát sáng
+                ctx.beginPath();
+                ctx.arc(curX, curY, 12, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = colorNeon;
+                ctx.shadowBlur = 30;
+                ctx.fill();
+                
+                // Lớp viền xanh cho vòng tròn đầu tầu
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = colorNeon;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Vòng lặp animation
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawMaze();
+            drawPath();
+
+            if (progress < pathCoords.length - 1) {
+                progress += speed;
+                requestAnimationFrame(animate);
+            } else {
+                // Đợi một lúc rồi lặp lại
+                setTimeout(() => {
+                    progress = 0;
+                    requestAnimationFrame(animate);
+                }, 1500);
+            }
+        }
+
+        // Bắt đầu
+        window.onload = animate;
+    </script>
+</body>
+</html>
