@@ -8,6 +8,29 @@ export const ControlPanel = ({
   setBaseGrid, startNode, endNode 
 }) => {
   
+  // Thêm styles trực tiếp để làm nổi bật các nút kịch bản phân tích
+  const highlightStyles = `
+    .btn.highlight {
+      border: 2px solid #10b981 !important;
+      color: #10b981 !important;
+      background: rgba(16, 185, 129, 0.05) !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.5px;
+      transition: all 0.2s ease;
+    }
+    .btn.highlight:hover {
+      background: #10b981 !important;
+      color: white !important;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      transform: translateY(-1px);
+    }
+    .cost-text {
+      color: #1e293b;
+      font-weight: bold;
+      text-shadow: 0px 0px 2px white;
+    }
+  `;
+
   const loadScenario = (type) => {
     if (isRunning) return;
     clearPath();
@@ -131,6 +154,7 @@ export const ControlPanel = ({
 
   return (
     <aside className="sidebar">
+      <style>{highlightStyles}</style>
       <h1 className="logo">Algo<span>Trace</span></h1>
       
       <div className="control-group">
