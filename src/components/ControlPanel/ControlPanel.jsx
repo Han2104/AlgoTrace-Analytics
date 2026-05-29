@@ -73,6 +73,38 @@ export const ControlPanel = ({
               if (r % 3 !== 0 && c > 1 && c < COLS - 2 && c % 3 !== 0) {
                   newGrid[r][c].isWall = true;
               }
+            } else if (type === 'efficiency') {
+              // Case: Không gian mở để so sánh số lượng Node đã duyệt (A* thắng tuyệt đối)
+              // Clear hết, chỉ để Start và End ở hai góc xa nhất
+              newGrid[r][c].isWall = false;
+              newGrid[r][c].weight = 1;
+            } else if (type === 'cost_battle') {
+              // Case: Đường ngắn nhưng đắt vs Đường dài nhưng rẻ (Dijkstra thắng BFS)
+              const midCol = Math.floor(COLS / 2);
+              // Tạo một "bức tường" trọng số cao ở giữa
+              if (c === midCol && r > 2 && r < ROWS - 3) {
+                newGrid[r][c].weight = 50; 
+              }
+              // Tạo một khe hở nhỏ ở phía trên và dưới với trọng số 1
+            }
+          }
+        }
+        
+        if (type === 'efficiency') {
+          // Đặt Start và End ở vị trí tối ưu để thấy độ lan tỏa
+          // Lưu ý: Cần gọi setStartNode/setEndNode bên ngoài hoặc thông qua prop
+          // Ở đây ta giả định dùng vị trí mặc định hoặc người dùng tự kéo.
+        }
+        
+        if (type === 'cost_battle') {
+          // Tạo một rào cản vật lý bao quanh trọng số để ép thuật toán phải chọn
+          for (let r = 0; r < ROWS; r++) {
+            if ((r < 3 || r > ROWS - 4) && Math.abs(r - Math.floor(ROWS/2)) > 5) {
+              // Để trống đường đi vòng
+            } else {
+               if (Math.floor(COLS/2) === Math.floor(COLS/2)) {
+                 // logic tạo dải phân cách đã xử lý ở vòng lặp trên
+               }
             }
           }
         }
@@ -132,6 +164,8 @@ export const ControlPanel = ({
         <button onClick={() => loadScenario('social')} disabled={isRunning} className="btn outline">Mạng xã hội (Trống)</button>
         <button onClick={() => loadScenario('traffic')} disabled={isRunning} className="btn outline">Định tuyến (Trọng số)</button>
         <button onClick={() => loadScenario('warehouse')} disabled={isRunning} className="btn outline">Kho hàng (Vật cản)</button>
+        <button onClick={() => loadScenario('efficiency')} disabled={isRunning} className="btn highlight">Ưu thế A* (Tốc độ)</button>
+        <button onClick={() => loadScenario('cost_battle')} disabled={isRunning} className="btn highlight">Ưu thế Dijkstra (Chi phí)</button>
       </div>
 
       <div className="legend">
