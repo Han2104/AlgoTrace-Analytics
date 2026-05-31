@@ -23,6 +23,7 @@ export const usePathfinding = () => {
   const speedRef = useRef(100);
   const pauseRef = useRef(false);
   const resolvePauseRef = useRef([]);
+  const stopRef = useRef(false);
 
   const updateSpeed = (val) => {
     setSpeed(val);
@@ -42,13 +43,20 @@ export const usePathfinding = () => {
   };
 
   const sleep = async () => {
+    if (stopRef.current) throw new Error('CANCELLED');
     if (pauseRef.current) {
       await new Promise(res => resolvePauseRef.current.push(res));
+      if (stopRef.current) throw new Error('CANCELLED');
     }
     return new Promise(res => setTimeout(res, speedRef.current));
   };
 
   const clearPath = useCallback(() => {
+    stopRef.current = true;
+    if (resolvePauseRef.current.length > 0) {
+      resolvePauseRef.current.forEach(resolve => resolve());
+      resolvePauseRef.current = [];
+    }
     resetDOMGrids();
     setStats({
       dfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
@@ -56,11 +64,21 @@ export const usePathfinding = () => {
       dijkstra: { visited: 0, cost: 0, status: 'Sẵn sàng' },
       astar: { visited: 0, cost: 0, status: 'Sẵn sàng' },
     });
+    pauseRef.current = false;
+    setIsPaused(false);
+    setIsRunning(false);
   }, []);
 
   const startAlgorithms = async () => {
     if (isRunning) return;
-    clearPath();
+    stopRef.current = false;
+    resetDOMGrids();
+    setStats({
+      dfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
+      bfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
+      dijkstra: { visited: 0, cost: 0, status: 'Sẵn sàng' },
+      astar: { visited: 0, cost: 0, status: 'Sẵn sàng' },
+    });
     setIsRunning(true);
     setIsPaused(false);
     pauseRef.current = false;
@@ -69,6 +87,7 @@ export const usePathfinding = () => {
     const animatePath = async (algoId, path, cost) => {
       setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], cost, status: 'Hoàn thành' } }));
       for (let i = path.length - 2; i > 0; i--) {
+        if (stopRef.current) return;
         updateNodeDOM(algoId, path[i].r, path[i].c, ['path']);
         await sleep();
       }
@@ -82,24 +101,31 @@ export const usePathfinding = () => {
     const runAlgo = async (algoId, runFunc) => {
       try {
         const result = await runFunc(algoId, baseGrid, startNode, endNode, sleep, updateStat(algoId));
+        if (stopRef.current) return;
         if (result && result.path) {
           await animatePath(algoId, result.path, result.cost);
         } else {
           setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], status: 'Không tìm thấy' } }));
         }
       } catch (e) {
-        console.error(e);
+        if (e.message !== 'CANCELLED') console.error(e);
       }
     };
 
-    await Promise.all([
-      runAlgo('dfs', runDFS),
-      runAlgo('bfs', runBFS),
-      runAlgo('dijkstra', runDijkstra),
-      runAlgo('astar', runAStar),
-    ]);
+    try {
+      await Promise.all([
+        runAlgo('dfs', runDFS),
+        runAlgo('bfs', runBFS),
+        runAlgo('dijkstra', runDijkstra),
+        runAlgo('astar', runAStar),
+      ]);
+    } catch (e) {
+      if (e.message !== 'CANCELLED') console.error(e);
+    }
 
-    setIsRunning(false);
+    if (!stopRef.current) {
+      setIsRunning(false);
+    }
   };
 
   return {

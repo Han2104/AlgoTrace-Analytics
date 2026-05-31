@@ -137,7 +137,6 @@ export const ControlPanel = ({
   };
 
   const clearBoard = () => {
-    if (isRunning) return;
     clearPath();
     setBaseGrid(prev => {
       const newGrid = [...prev];
@@ -177,8 +176,8 @@ export const ControlPanel = ({
         <button onClick={togglePause} disabled={!isRunning} className="btn warning">
           {isPaused ? 'Tiếp tục' : 'Tạm Dừng'}
         </button>
-        <button onClick={clearPath} disabled={isRunning} className="btn secondary">Xóa Đường Đi</button>
-        <button onClick={clearBoard} disabled={isRunning} className="btn danger">Xóa Bảng</button>
+        <button onClick={clearPath} className="btn secondary">Xóa Đường Đi</button>
+        <button onClick={clearBoard} className="btn danger">Xóa Bảng</button>
       </div>
 
       <div className="control-group generator-group">

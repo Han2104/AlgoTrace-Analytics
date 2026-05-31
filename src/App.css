@@ -103,8 +103,7 @@ body { background-color: var(--bg-main); color: var(--text-main); overflow: hidd
   width: 20px; height: 20px; background-color: var(--cell-unvisited);
   display: flex; align-items: center; justify-content: center;
   font-size: 7px; color: #1e293b; font-weight: bold; user-select: none;
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.02); /* Faint grid lines */
-  transition: transform 0.1s;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.02);
   position: relative;
 }
 
@@ -120,11 +119,10 @@ body { background-color: var(--bg-main); color: var(--text-main); overflow: hidd
 }
 .node.start { background-color: var(--cell-start) !important; border-radius: 50%; z-index: 10; box-shadow: 0 0 15px var(--cell-path), inset 0 0 4px #fff !important;}
 .node.end { background-color: var(--cell-end) !important; border-radius: 50%; z-index: 10; box-shadow: 0 0 15px var(--cell-end), inset 0 0 4px #fff !important;}
-.node.visited { background-color: var(--cell-visited); animation: visitedAnimation 1.5s ease-out forwards; }
-.node.processing { background-color: var(--cell-processing); animation: processingAnimation 0.5s infinite alternate; }
+.node.visited { background-color: var(--cell-visited); }
+.node.processing { background-color: var(--cell-processing); }
 .node.path { 
     background-color: var(--cell-path) !important; 
-    animation: pathAnimation 0.5s ease-out forwards; 
     border-radius: 0 !important; 
     z-index: 8; 
     box-shadow: 0 0 15px var(--cell-path), inset 0 0 4px #e6ffe6 !important;
@@ -135,13 +133,4 @@ body { background-color: var(--bg-main); color: var(--text-main); overflow: hidd
 .node.weight-30 { background-color: #fca5a5; }
 .node .cost-text { pointer-events: none; z-index: 5; }
 
-@keyframes visitedAnimation { 
-    0% { transform: scale(0.3); background-color: rgba(57, 255, 20, 0); border-radius: 100%; } 
-    50% { background-color: rgba(57, 255, 20, 0.3); } 
-    100% { transform: scale(1); background-color: var(--cell-visited); } 
-}
-@keyframes processingAnimation { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
-@keyframes pathAnimation { 
-    0% { transform: scale(0.6); opacity: 0; border-radius: 50%; } 
-    100% { transform: scale(1); opacity: 1; border-radius: 0; background-color: var(--cell-path); } 
-}
+

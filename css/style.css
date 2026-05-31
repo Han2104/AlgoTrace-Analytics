@@ -265,7 +265,6 @@ body {
     width: 25px;
     height: 25px;
     background-color: var(--cell-unvisited);
-    transition: background-color 0.1s ease-out, transform 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -275,20 +274,14 @@ body {
     user-select: none;
 }
 
-.node.wall { background-color: var(--cell-wall); animation: popWall 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(255,255,255,0.1); }
-.node.start { background-color: var(--cell-start) !important; border-radius: 50%; transform: scale(0.9); box-shadow: 0 0 10px var(--cell-start); z-index: 2; }
-.node.end { background-color: var(--cell-end) !important; border-radius: 50%; transform: scale(0.9); box-shadow: 0 0 10px var(--cell-end); z-index: 2; }
-.node.visited { background-color: var(--cell-visited); animation: visitedAnimation 1.5s ease-out forwards; }
-.node.processing { background-color: var(--cell-processing); animation: processingAnimation 0.5s infinite alternate; }
-.node.path { background-color: var(--cell-path); animation: pathAnimation 0.5s ease-out forwards; border-radius: 20%; box-shadow: 0 0 8px var(--cell-path); z-index: 1; }
-.node.backtrack { background-color: var(--cell-backtrack); animation: backtrackAnimation 0.3s ease-out forwards; }
+.node.wall { background-color: var(--cell-wall); border: 1px solid rgba(255,255,255,0.1); }
+.node.start { background-color: var(--cell-start) !important; border-radius: 50%; box-shadow: 0 0 10px var(--cell-start); z-index: 2; }
+.node.end { background-color: var(--cell-end) !important; border-radius: 50%; box-shadow: 0 0 10px var(--cell-end); z-index: 2; }
+.node.visited { background-color: var(--cell-visited); }
+.node.processing { background-color: var(--cell-processing); }
+.node.path { background-color: var(--cell-path); border-radius: 20%; box-shadow: 0 0 8px var(--cell-path); z-index: 1; }
+.node.backtrack { background-color: var(--cell-backtrack); }
 .node.weight-10 { background-color: #d1fae5; }
 .node.weight-20 { background-color: #fef08a; }
 .node.weight-30 { background-color: #fca5a5; }
 .node .cost-text { pointer-events: none; z-index: 5; }
-
-@keyframes popWall { 0% { transform: scale(0.3); border-radius: 50%; } 50% { transform: scale(1.2); } 100% { transform: scale(1); border-radius: 0; } }
-@keyframes visitedAnimation { 0% { transform: scale(0.3); background-color: rgba(17, 104, 217, 0.75); border-radius: 100%; } 50% { background-color: rgba(17, 217, 187, 0.75); } 75% { transform: scale(1.2); background-color: var(--cell-visited); } 100% { transform: scale(1); background-color: var(--cell-visited); border-radius: 0; } }
-@keyframes processingAnimation { 0% { transform: scale(0.8); background-color: #fde047; } 100% { transform: scale(1); background-color: var(--cell-processing); } }
-@keyframes pathAnimation { 0% { transform: scale(0.6); background-color: #f87171; border-radius: 50%; } 50% { transform: scale(1.2); } 100% { transform: scale(1); background-color: var(--cell-path); } }
-@keyframes backtrackAnimation { 0% { transform: scale(1.1); background-color: var(--danger); } 100% { transform: scale(1); background-color: var(--cell-backtrack); } }
