@@ -128,11 +128,11 @@ export const ControlPanel = ({
         <label>Kịch bản</label>
         <button onClick={() => loadScenario('maze')} disabled={isRunning} className="btn outline">Mê cung</button>
         <button onClick={() => loadScenario('random')} disabled={isRunning} className="btn outline">Ngẫu nhiên</button>
-        <button onClick={() => loadScenario('social')} disabled={isRunning} className="btn outline">Mạng XH</button>
+        <button onClick={() => loadScenario('social')} disabled={isRunning} className="btn outline">Mạng Xã hội</button>
         <button onClick={() => loadScenario('traffic')} disabled={isRunning} className="btn outline">Trọng số</button>
         <button onClick={() => loadScenario('warehouse')} disabled={isRunning} className="btn outline">Kho hàng</button>
         <button onClick={() => loadScenario('efficiency')} disabled={isRunning} className="btn outline highlight">A* Tốc độ</button>
-        <button onClick={() => loadScenario('cost_battle')} disabled={isRunning} className="btn outline highlight">Dijkstra CP</button>
+        <button onClick={() => loadScenario('cost_battle')} disabled={isRunning} className="btn outline highlight">Dijkstra (Chi phí)</button>
       </div>
 
       <div className="legend">
