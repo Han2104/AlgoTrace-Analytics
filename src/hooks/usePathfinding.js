@@ -6,13 +6,15 @@ import { runDijkstra } from '../algorithms/dijkstra';
 import { runAStar } from '../algorithms/astar';
 
 export const usePathfinding = () => {
-  const [baseGrid, setBaseGrid] = useState(createInitialGrid());
-  const [startNode, setStartNode] = useState({ r: 7, c: 3 });
-  const [endNode, setEndNode] = useState({ r: 7, c: 16 });
-  const [isRunning, setIsRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [speed, setSpeed] = useState(50);
+  // ---------- STATE (dùng cho UI, re-render khi thay đổi) ----------
+  const [baseGrid, setBaseGrid] = useState(createInitialGrid());   // Grid gốc dùng chung cho 4 thuật toán
+  const [startNode, setStartNode] = useState({ r: 7, c: 3 });      // Ô bắt đầu (row, col)
+  const [endNode, setEndNode] = useState({ r: 7, c: 16 });         // Ô kết thúc (row, col)
+  const [isRunning, setIsRunning] = useState(false);                // Đang chạy thuật toán?
+  const [isPaused, setIsPaused] = useState(false);                 // Đang tạm dừng?
+  const [speed, setSpeed] = useState(50);                          // Tốc độ UI (0-100), dùng cho slider
   
+  // Thống kê riêng cho từng thuật toán (visited, cost, status)
   const [stats, setStats] = useState({
     dfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
     bfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
@@ -20,45 +22,57 @@ export const usePathfinding = () => {
     astar: { visited: 0, cost: 0, status: 'Sẵn sàng' },
   });
 
-  const speedRef = useRef(100);
-  const pauseRef = useRef(false);
-  const resolvePauseRef = useRef([]);
-  const stopRef = useRef(false);
+  // ---------- REF (không gây re-render, dùng cho async logic) ----------
+  const speedRef = useRef(100);          // Thời gian delay (ms) giữa các bước — đọc trong sleep()
+  const pauseRef = useRef(false);        // Cờ tạm dừng — đọc trong sleep()
+  const resolvePauseRef = useRef([]);    // Mảng chứa các hàm resolve của Promise tạm dừng
+  const stopRef = useRef(false);         // Cờ dừng hẳn — đọc để thoát thuật toán
 
+  // ---------- CẬP NHẬT TỐC ĐỘ ----------
+  // Đồng bộ cả speed (state -> UI) và speedRef (ref -> logic async)
   const updateSpeed = (val) => {
-    setSpeed(val);
-    speedRef.current = 200 - (val * 1.9);
+    setSpeed(val);                         // Cập nhật state để slider re-render
+    speedRef.current = 200 - (val * 1.9);  // Map 0-100 -> ~200ms-10ms delay
   };
 
+  // ---------- TẠM DỪNG / TIẾP TỤC ----------
+  // Khi pause: gán pauseRef = true → sleep() sẽ chờ
+  // Khi resume: resolve tất cả Promise đang chờ → sleep() thoát, thuật toán chạy tiếp
   const togglePause = () => {
     setIsPaused(prev => {
-      const next = !prev;
-      pauseRef.current = next;
+      const next = !prev;                  // Đảo trạng thái pause
+      pauseRef.current = next;             // Đồng bộ ref
       if (!next && resolvePauseRef.current.length > 0) {
+        // Nếu resume => giải phóng tất cả các Promise sleep() đang bị giữ
         resolvePauseRef.current.forEach(resolve => resolve());
-        resolvePauseRef.current = [];
+        resolvePauseRef.current = [];      // Dọn mảng
       }
       return next;
     });
   };
 
+  // ---------- HÀM SLEEP (delay giữa các bước) ----------
+  // Được truyền vào từng thuật toán, dùng để tạo hiệu ứng animation
   const sleep = async () => {
-    if (stopRef.current) throw new Error('CANCELLED');
+    if (stopRef.current) throw new Error('CANCELLED');  // Nếu đã bị clear thì thoát ngay
     if (pauseRef.current) {
+      // Nếu đang tạm dừng => chờ cho đến khi được resume
       await new Promise(res => resolvePauseRef.current.push(res));
-      if (stopRef.current) throw new Error('CANCELLED');
+      if (stopRef.current) throw new Error('CANCELLED'); // Kiểm tra lại sau khi resume
     }
-    return new Promise(res => setTimeout(res, speedRef.current));
+    return new Promise(res => setTimeout(res, speedRef.current)); // Delay thực tế
   };
 
+  // ---------- XÓA ĐƯỜNG ĐI / DỪNG THUẬT TOÁN ----------
+  // Dừng tất cả, xóa grid về trạng thái ban đầu
   const clearPath = useCallback(() => {
-    stopRef.current = true;
+    stopRef.current = true;                // Báo tất cả thuật toán dừng ngay
     if (resolvePauseRef.current.length > 0) {
-      resolvePauseRef.current.forEach(resolve => resolve());
+      resolvePauseRef.current.forEach(resolve => resolve()); // Giải phóng nếu đang pause
       resolvePauseRef.current = [];
     }
-    resetDOMGrids();
-    setStats({
+    resetDOMGrids();                       // Xóa màu trên DOM grid
+    setStats({                             // Reset stats
       dfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
       bfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
       dijkstra: { visited: 0, cost: 0, status: 'Sẵn sàng' },
@@ -69,10 +83,13 @@ export const usePathfinding = () => {
     setIsRunning(false);
   }, []);
 
+  // ---------- CHẠY TẤT CẢ THUẬT TOÁN ----------
   const startAlgorithms = async () => {
-    if (isRunning) return;
-    stopRef.current = false;
-    resetDOMGrids();
+    if (isRunning) return;                 // Chặn bấm Start khi đang chạy
+    stopRef.current = false;               // Reset cờ dừng
+    resetDOMGrids();                       // Xóa DOM cũ
+
+    // Reset stats
     setStats({
       dfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
       bfs: { visited: 0, cost: 0, status: 'Sẵn sàng' },
@@ -83,35 +100,42 @@ export const usePathfinding = () => {
     setIsPaused(false);
     pauseRef.current = false;
 
-    // Helper to animate final path
+    // ----- Hàm phụ: animate đường đi sau khi thuật toán tìm ra path -----
     const animatePath = async (algoId, path, cost) => {
+      // Cập nhật cost & trạng thái "Hoàn thành" cho thuật toán đó
       setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], cost, status: 'Hoàn thành' } }));
+      // Duyệt path từ cuối lên (bỏ start & end), tô màu từng ô
       for (let i = path.length - 2; i > 0; i--) {
-        if (stopRef.current) return;
-        updateNodeDOM(algoId, path[i].r, path[i].c, ['path']);
-        await sleep();
+        if (stopRef.current) return;       // Nếu bị clear thì thoát
+        updateNodeDOM(algoId, path[i].r, path[i].c, ['path']); // Tô màu đường đi
+        await sleep();                     // Delay giữa các bước
       }
     };
 
-    // Helper to update specific algo stat
+    // ----- Hàm phụ: callback để mỗi thuật toán tự cập nhật stats -----
+    // Trả về 1 hàm update (setter) riêng cho từng algoId
     const updateStat = (algoId) => (newStats) => {
       setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], ...newStats } }));
     };
 
+    // ----- Hàm chạy 1 thuật toán (gọi runFunc tương ứng) -----
     const runAlgo = async (algoId, runFunc) => {
       try {
+        // Gọi hàm thuật toán (runDFS, runBFS, runDijkstra, runAStar)
         const result = await runFunc(algoId, baseGrid, startNode, endNode, sleep, updateStat(algoId));
-        if (stopRef.current) return;
+        if (stopRef.current) return;       // Nếu bị clear thì không animate
         if (result && result.path) {
-          await animatePath(algoId, result.path, result.cost);
+          await animatePath(algoId, result.path, result.cost); // Tô đường đi
         } else {
+          // Không tìm thấy đường
           setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], status: 'Không tìm thấy' } }));
         }
       } catch (e) {
-        if (e.message !== 'CANCELLED') console.error(e);
+        if (e.message !== 'CANCELLED') console.error(e); // Bỏ qua lỗi CANCELLED
       }
     };
 
+    // ----- Chạy song song cả 4 thuật toán -----
     try {
       await Promise.all([
         runAlgo('dfs', runDFS),
@@ -123,11 +147,13 @@ export const usePathfinding = () => {
       if (e.message !== 'CANCELLED') console.error(e);
     }
 
+    // Kết thúc: tắt trạng thái running (trừ khi bị clear giữa chừng)
     if (!stopRef.current) {
       setIsRunning(false);
     }
   };
 
+  // ---------- EXPORT cho component dùng ----------
   return {
     baseGrid, setBaseGrid,
     startNode, setStartNode,
