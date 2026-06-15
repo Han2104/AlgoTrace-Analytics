@@ -5,13 +5,13 @@ export const MiniDashboard = ({ title, stats }) => {
     <div className="mini-dashboard">
       <div className="algo-title">{title}</div>
       <div className="stat-item">
-        Nút duyệt: <span>{stats.visited}</span>
+        <span>{stats.visited}</span> visited
       </div>
       <div className="stat-item">
-        Chi phí: <span>{stats.cost}</span>
+        <span>{stats.cost}</span> cost
       </div>
-      <div className="stat-item">
-        Trạng thái: <span>{stats.status}</span>
+      <div className="stat-item" style={{ marginLeft: 'auto' }}>
+        {stats.status}
       </div>
     </div>
   );

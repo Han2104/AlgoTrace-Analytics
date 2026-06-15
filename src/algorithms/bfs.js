@@ -62,7 +62,7 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
     // ── Goal check ─────────────────────────────────────────────────
     if (r === endNode.r && c === endNode.c) {
       // Reconstruct the full path by appending the goal cell.
-      return { path: [...path, { r, c }], cost: cost + grid[r][c].weight };
+      return { path: [...path, { r, c }], cost: cost };
     }
 
     // ── Neighbour exploration ──────────────────────────────────────
