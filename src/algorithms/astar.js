@@ -2,11 +2,9 @@ import { getNeighbors, updateNodeDOM, ROWS, COLS } from '../utils/boardUtils';
 import { manhattanDistance } from '../utils/heuristics';
 
 // runAStar
-// Header: Thuật toán A* sử dụng f = g + h, trong đó hàm heuristic hướng tìm kiếm về phía target.
-// Heuristic cần là admissible (không bao giờ ước lượng quá cao) để đảm bảo tính tối ưu.
+// Header: Thuật toán A* sử dụng f = g + h.
+// Đã tích hợp cờ isBenchmark để chạy ngầm (headless mode) trong Node.js.
 export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, updateStats, isBenchmark = false) => {
-  // Open set: mảng `pq` được sort theo f. Mỗi entry chứa g,h,f,path.
-  // Lưu ý: dùng `array.sort` mỗi vòng đơn giản hơn so với binary heap nhưng kém hiệu quả hơn.
   let pq = [{ r: startNode.r, c: startNode.c, g: 0, h: 0, f: 0, path: [] }];
   let gScore = Array(ROWS).fill().map(() => Array(COLS).fill(Infinity));
   let grid = baseGrid.map(row => row.map(n => ({...n, isVisited: false})));
@@ -21,14 +19,14 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
     const current = pq.shift();
     const { r, c, g, path } = current;
 
-    // Nếu ô đã visited, entry này là cũ (được push trước đó với f/g kém hơn)
     if (grid[r][c].isVisited) continue;
     grid[r][c].isVisited = true;
     
     visitedNodes++;
-    if (!isBenchmark) updateStats({ visited: visitedNodes, cost: g, status: 'Đang chạy...' });
-
+    
     if (!isBenchmark) {
+      updateStats({ visited: visitedNodes, cost: g, status: 'Đang chạy...' });
+      
       if (r !== startNode.r || c !== startNode.c) {
         let html = null;
         if (r !== endNode.r || c !== endNode.c) {
@@ -42,7 +40,13 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
       if (isBenchmark) {
         const end = performance.now();
         const foundPath = [...path, { r, c }];
-        return { pathFound: true, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: foundPath.length, maxFringeSize };
+        return { 
+          pathFound: true, 
+          executionTimeMs: end - t0, 
+          nodesExpanded: visitedNodes, 
+          pathLength: foundPath.length, 
+          maxFringeSize 
+        };
       }
       return { path: [...path, {r, c}], cost: g };
     }
@@ -53,20 +57,15 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
 
       const tentativeG = g + grid[n.r][n.c].weight;
       if (tentativeG < gScore[n.r][n.c]) {
-        // Tìm được đường đi rẻ hơn tới neighbor
         gScore[n.r][n.c] = tentativeG;
-        // Ghi chú về scale heuristic: manhattanDistance trả về số bước; nhân với 10
-        // để phù hợp với thang trọng số nếu trọng số là số nguyên >1 (theo convention dự án).
-        // Lưu ý toán học (heuristic): h phải là admissible. Với lưới 4-láng giềng,
-        // Manhattan là admissible. Việc nhân heuristic với hằng số vẫn bảo toàn tính admissible
-        // nếu hệ số này tương ứng với đơn vị chi phí di chuyển.
-        const h = manhattanDistance(n.r, n.c, endNode.r, endNode.c) * 10; 
+        
+        // Đảm bảo tính Admissible tuyệt đối (không nhân trọng số ảo)
+        const h = manhattanDistance(n.r, n.c, endNode.r, endNode.c); 
         const f = tentativeG + h;
         
-        // Push entry; nếu không có decrease-key ta có thể push nhiều entry cho cùng node.
         pq.push({ r: n.r, c: n.c, g: tentativeG, h: h, f: f, path: [...path, {r, c}] });
         maxFringeSize = Math.max(maxFringeSize, pq.length);
-
+        
         if (!isBenchmark) {
           if (n.r !== endNode.r || n.c !== endNode.c) {
             updateNodeDOM(algoId, n.r, n.c, ['processing']);
@@ -74,8 +73,10 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
         }
       }
     }
+    
     if (!isBenchmark) await sleep();
   }
+  
   if (isBenchmark) {
     const end = performance.now();
     return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: 0, maxFringeSize };

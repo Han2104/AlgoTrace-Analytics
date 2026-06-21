@@ -90,6 +90,21 @@ def setup_and_run_analysis(csv_path="benchmark_results.csv"):
     plt.savefig(os.path.join(output_dir, "Chart_MemoryFringe.png"), dpi=300)
     plt.close()
 
+# Biểu đồ 4: So sánh Chất lượng đường đi (Độ dài Path)
+    plt.figure(figsize=(12, 6))
+    
+    # Để tránh biểu đồ bị lệch quá mức do DFS thỉnh thoảng sinh ra đường siêu dài,
+    # chúng ta có thể dùng biểu đồ Boxplot hoặc chỉ đơn giản là Barplot có giới hạn trục Y
+    sns.barplot(data=summary, x='MapType', y='Avg_PathLength', hue='Algorithm')
+    
+    plt.title('So sánh Chất lượng đường đi (Độ dài đường đi trung bình)', fontsize=14, pad=15)
+    plt.ylabel('Số bước đi (Path Length)')
+    plt.xlabel('Loại Bản đồ')
+    plt.legend(title='Thuật toán')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "Chart_PathLength.png"), dpi=300)
+    plt.close()
+
     print(f"\nHOÀN TẤT! Toàn bộ báo cáo và biểu đồ đã được xuất ra thư mục '{output_dir}'.")
 
 if __name__ == "__main__":
