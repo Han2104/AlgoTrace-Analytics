@@ -14,28 +14,24 @@ def setup_and_run_analysis(csv_path="benchmark_results.csv"):
         return
 
     print("2. Đọc và làm sạch dữ liệu...")
-    # Cấu trúc cột dựa trên định dạng: DFS,Warehouse,495,0.021,34,34,true,9
-    columns = ['Algorithm', 'MapType', 'Trial', 'Time_ms', 'NodesExpanded', 'PathLength', 'PathFound', 'MaxFringe']
-    
     try:
-        # Xử lý lỗi thiếu Header trong file CSV của bạn
-        df = pd.read_csv(csv_path, header=None, names=columns)
-        
-        # Ép kiểu dữ liệu để tránh lỗi tính toán
+        df = pd.read_csv(csv_path)
+
+        if 'algorithm' in df.columns:
+            df.rename(columns={'algorithm': 'Algorithm', 'map': 'MapType', 'trial': 'Trial', 'executionTimeMs': 'Time_ms', 'nodesExpanded': 'NodesExpanded', 'pathLength': 'PathLength', 'totalCost': 'TotalCost', 'pathFound': 'PathFound', 'maxFringeSize': 'MaxFringe'}, inplace=True)
+
         df['Time_ms'] = pd.to_numeric(df['Time_ms'], errors='coerce')
         df['NodesExpanded'] = pd.to_numeric(df['NodesExpanded'], errors='coerce')
         df['PathLength'] = pd.to_numeric(df['PathLength'], errors='coerce')
+        df['TotalCost'] = pd.to_numeric(df['TotalCost'], errors='coerce')
         df['MaxFringe'] = pd.to_numeric(df['MaxFringe'], errors='coerce')
-        
+
     except Exception as e:
         print(f"[LỖI] Không thể đọc định dạng CSV: {e}")
         return
 
     print("3. Tổng hợp số liệu thống kê...")
-# Ép kiểu cột PathFound về chữ thường và xóa khoảng trắng thừa để so khớp
     df['PathFound'] = df['PathFound'].astype(str).str.strip().str.lower()
-    
-    # Lọc những bản ghi có chữ 'true'
     df_success = df[df['PathFound'] == 'true']
     
     if df_success.empty:
@@ -46,11 +42,11 @@ def setup_and_run_analysis(csv_path="benchmark_results.csv"):
         Avg_Time_ms=('Time_ms', 'mean'),
         Avg_NodesExpanded=('NodesExpanded', 'mean'),
         Avg_PathLength=('PathLength', 'mean'),
+        Avg_TotalCost=('TotalCost', 'mean'),
         Avg_MemoryFringe=('MaxFringe', 'mean'),
         Success_Count=('PathFound', 'count')
     ).round(3).reset_index()
 
-    # Xuất báo cáo dạng Excel
     excel_path = os.path.join(output_dir, "ThongKe_TongHop.xlsx")
     summary.to_excel(excel_path, index=False)
     print(f" -> Đã lưu báo cáo Excel tại: {excel_path}")
@@ -58,9 +54,15 @@ def setup_and_run_analysis(csv_path="benchmark_results.csv"):
     print("4. Vẽ biểu đồ so sánh trực quan...")
     sns.set_theme(style="whitegrid")
     
+    # Hàm hỗ trợ in số lên đỉnh cột
+    def add_labels(ax):
+        for container in ax.containers:
+            ax.bar_label(container, fmt='%.0f', padding=3, fontsize=9)
+
     # Biểu đồ 1: Thời gian thực thi
     plt.figure(figsize=(12, 6))
-    sns.barplot(data=summary, x='MapType', y='Avg_Time_ms', hue='Algorithm')
+    ax1 = sns.barplot(data=summary, x='MapType', y='Avg_Time_ms', hue='Algorithm')
+    add_labels(ax1)
     plt.title('So sánh Thời gian thực thi trung bình (ms)', fontsize=14, pad=15)
     plt.ylabel('Thời gian (ms)')
     plt.xlabel('Loại Bản đồ')
@@ -71,7 +73,8 @@ def setup_and_run_analysis(csv_path="benchmark_results.csv"):
 
     # Biểu đồ 2: Số nút đã duyệt (Độ phức tạp không gian)
     plt.figure(figsize=(12, 6))
-    sns.barplot(data=summary, x='MapType', y='Avg_NodesExpanded', hue='Algorithm')
+    ax2 = sns.barplot(data=summary, x='MapType', y='Avg_NodesExpanded', hue='Algorithm')
+    add_labels(ax2)
     plt.title('So sánh Số nút đã rà soát trung bình', fontsize=14, pad=15)
     plt.ylabel('Số nút (Nodes)')
     plt.xlabel('Loại Bản đồ')
@@ -79,9 +82,11 @@ def setup_and_run_analysis(csv_path="benchmark_results.csv"):
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "Chart_NodesExpanded.png"), dpi=300)
     plt.close()
+
     # Biểu đồ 3: Bộ nhớ đỉnh điểm (Peak Memory / Max Fringe Size)
     plt.figure(figsize=(12, 6))
-    sns.barplot(data=summary, x='MapType', y='Avg_MemoryFringe', hue='Algorithm')
+    ax3 = sns.barplot(data=summary, x='MapType', y='Avg_MemoryFringe', hue='Algorithm')
+    add_labels(ax3)
     plt.title('So sánh Bộ nhớ sử dụng đỉnh điểm (Max Fringe Size)', fontsize=14, pad=15)
     plt.ylabel('Kích thước Hàng đợi lớn nhất (Số Node)')
     plt.xlabel('Loại Bản đồ')
@@ -90,19 +95,16 @@ def setup_and_run_analysis(csv_path="benchmark_results.csv"):
     plt.savefig(os.path.join(output_dir, "Chart_MemoryFringe.png"), dpi=300)
     plt.close()
 
-# Biểu đồ 4: So sánh Chất lượng đường đi (Độ dài Path)
+    # Biểu đồ 4: So sánh TỔNG CHI PHÍ đường đi (Total Path Cost) - Đã chốt giữ DFS
     plt.figure(figsize=(12, 6))
-    
-    # Để tránh biểu đồ bị lệch quá mức do DFS thỉnh thoảng sinh ra đường siêu dài,
-    # chúng ta có thể dùng biểu đồ Boxplot hoặc chỉ đơn giản là Barplot có giới hạn trục Y
-    sns.barplot(data=summary, x='MapType', y='Avg_PathLength', hue='Algorithm')
-    
-    plt.title('So sánh Chất lượng đường đi (Độ dài đường đi trung bình)', fontsize=14, pad=15)
-    plt.ylabel('Số bước đi (Path Length)')
+    ax4 = sns.barplot(data=summary, x='MapType', y='Avg_TotalCost', hue='Algorithm')
+    add_labels(ax4)
+    plt.title('So sánh Tổng chi phí đường đi (Total Path Cost)', fontsize=14, pad=15)
+    plt.ylabel('Tổng chi phí (Trọng số)')
     plt.xlabel('Loại Bản đồ')
     plt.legend(title='Thuật toán')
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Chart_PathLength.png"), dpi=300)
+    plt.savefig(os.path.join(output_dir, "Chart_TotalCost.png"), dpi=300) 
     plt.close()
 
     print(f"\nHOÀN TẤT! Toàn bộ báo cáo và biểu đồ đã được xuất ra thư mục '{output_dir}'.")

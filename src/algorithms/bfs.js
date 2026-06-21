@@ -26,7 +26,7 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
     const { r, c, path, cost } = current;
     
     visitedNodes++;
-    if (!isBenchmark) updateStats({ visited: visitedNodes, cost: 0, status: 'Đang chạy...' });
+    if (!isBenchmark) updateStats({ visited: visitedNodes, cost: cost, status: 'Đang chạy...' });
 
     if (!isBenchmark) {
       if (r !== startNode.r || c !== startNode.c) {
@@ -37,12 +37,14 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
     // Nếu gặp target, trả về path hiện tại + node này
     // Lưu ý: `path` được xây dựng dần khi push neighbor nên không cần bước backtracking riêng
     if (r === endNode.r && c === endNode.c) {
+      const foundPath = [...path, { r, c }];
+      // Recompute true total cost by summing node weights along the found path (exclude start node weight)
+      let trueCost = foundPath.reduce((acc, n) => acc + grid[n.r][n.c].weight, 0) - grid[startNode.r][startNode.c].weight;
       if (isBenchmark) {
         const end = performance.now();
-        const foundPath = [...path, { r, c }];
-        return { pathFound: true, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: foundPath.length, maxFringeSize };
+        return { pathFound: true, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: foundPath.length, totalCost: trueCost, maxFringeSize };
       }
-      return { path: [...path, {r, c}], cost: cost + grid[r][c].weight };
+      return { path: foundPath, cost: trueCost, pathLength: foundPath.length, totalCost: trueCost };
     }
 
     // Lấy neighbors theo quy tắc 4-láng giềng (được lọc bởi getNeighbors)
@@ -51,7 +53,8 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
       // visited flag ngăn push lại cùng node -> tránh vòng lặp
       if (!grid[n.r][n.c].isVisited) {
         grid[n.r][n.c].isVisited = true;
-        const newCost = cost + grid[n.r][n.c].weight;
+        // BFS is unweighted for cost calculations: each step costs 1
+        const newCost = cost + 1;
         // Push neighbor kèm bản sao `path`: cách làm đơn giản nhưng chi phí sao chép tăng theo độ dài đường dẫn
         queue.push({ r: n.r, c: n.c, path: [...path, {r, c}], cost: newCost });
         maxFringeSize = Math.max(maxFringeSize, queue.length);
@@ -67,7 +70,7 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
   }
   if (isBenchmark) {
     const end = performance.now();
-    return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: 0, maxFringeSize };
+    return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, totalCost: 0, maxFringeSize };
   }
   return null;
 };

@@ -69,7 +69,7 @@ Bạn có thể chạy benchmark hoàn toàn qua Terminal để thu thập số 
 - Chạy benchmark:
 
 ```bash
-node scripts/run_benchmark.js
+npx tsx scripts/run_benchmark.js
 ```
 
 - File kết quả: `benchmark_results.csv` (tạo ở thư mục gốc) với các cột:

@@ -15,7 +15,8 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
   const t0 = isBenchmark ? performance.now() : null;
 
   while (pq.length > 0) {
-    pq.sort((a, b) => a.f - b.f);
+    // Tie-breaking: prefer smaller h when f equal
+    pq.sort((a, b) => a.f === b.f ? a.h - b.h : a.f - b.f);
     const current = pq.shift();
     const { r, c, g, path } = current;
 
@@ -37,18 +38,19 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
     }
 
     if (r === endNode.r && c === endNode.c) {
+      const foundPath = [...path, { r, c }];
       if (isBenchmark) {
         const end = performance.now();
-        const foundPath = [...path, { r, c }];
-        return { 
-          pathFound: true, 
-          executionTimeMs: end - t0, 
-          nodesExpanded: visitedNodes, 
-          pathLength: foundPath.length, 
-          maxFringeSize 
+        return {
+          pathFound: true,
+          executionTimeMs: end - t0,
+          nodesExpanded: visitedNodes,
+          pathLength: foundPath.length,
+          totalCost: g,
+          maxFringeSize
         };
       }
-      return { path: [...path, {r, c}], cost: g };
+      return { path: foundPath, cost: g, pathLength: foundPath.length, totalCost: g };
     }
 
     const neighbors = getNeighbors(grid, r, c);
@@ -63,8 +65,19 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
         const h = manhattanDistance(n.r, n.c, endNode.r, endNode.c); 
         const f = tentativeG + h;
         
-        pq.push({ r: n.r, c: n.c, g: tentativeG, h: h, f: f, path: [...path, {r, c}] });
-        maxFringeSize = Math.max(maxFringeSize, pq.length);
+        // Decrease-key emulation: update existing entry in pq if present
+        const idx = pq.findIndex(e => e.r === n.r && e.c === n.c);
+        if (idx >= 0) {
+          if (tentativeG < pq[idx].g) {
+            pq[idx].g = tentativeG;
+            pq[idx].h = h;
+            pq[idx].f = f;
+            pq[idx].path = [...path, {r, c}];
+          }
+        } else {
+          pq.push({ r: n.r, c: n.c, g: tentativeG, h: h, f: f, path: [...path, {r, c}] });
+          maxFringeSize = Math.max(maxFringeSize, pq.length);
+        }
         
         if (!isBenchmark) {
           if (n.r !== endNode.r || n.c !== endNode.c) {
@@ -79,7 +92,7 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
   
   if (isBenchmark) {
     const end = performance.now();
-    return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: 0, maxFringeSize };
+    return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: 0, totalCost: 0, maxFringeSize };
   }
   return null;
 };

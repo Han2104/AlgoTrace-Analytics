@@ -23,10 +23,11 @@ export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, update
 
     grid[r][c].isVisited = true;
     visitedNodes++;
-    if (!isBenchmark) updateStats({ visited: visitedNodes, cost: 0, status: 'Đang chạy...' });
+    if (!isBenchmark) updateStats({ visited: visitedNodes, cost: cost, status: 'Đang chạy...' });
 
-    const newPath = [...path, { r, c }];
-    const newCost = cost + grid[r][c].weight;
+      const newPath = [...path, { r, c }];
+      // DFS treated as unweighted for cost reporting: each step costs 1
+      const newCost = cost + 1;
 
     if (!isBenchmark) {
       if (r !== startNode.r || c !== startNode.c) {
@@ -35,11 +36,14 @@ export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, update
     }
 
     if (r === endNode.r && c === endNode.c) {
+      const foundPath = newPath;
+      // Reconstruct true cost by summing weights along the found path (exclude start node)
+      let trueCost = foundPath.reduce((acc, n) => acc + grid[n.r][n.c].weight, 0) - grid[startNode.r][startNode.c].weight;
       if (isBenchmark) {
         const end = performance.now();
-        return { pathFound: true, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: newPath.length, maxFringeSize };
+        return { pathFound: true, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: foundPath.length, totalCost: trueCost, maxFringeSize };
       }
-      return { path: newPath, cost: newCost };
+      return { path: foundPath, cost: trueCost, pathLength: foundPath.length, totalCost: trueCost };
     }
 
     if (!isBenchmark) await sleep();
@@ -74,7 +78,7 @@ export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, update
 
   if (isBenchmark) {
     const end = performance.now();
-    return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: 0, maxFringeSize };
+    return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: 0, totalCost: 0, maxFringeSize };
   }
   return null;
 };

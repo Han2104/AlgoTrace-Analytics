@@ -84,12 +84,31 @@ const makeWeighted = () => {
   for (let r = 0; r < ROWS; r++) {
     const row = [];
     for (let c = 0; c < COLS; c++) {
-      // Make some heavier nodes randomly; no walls
-      const weight = Math.random() < 0.2 ? (2 + Math.floor(Math.random()*8)) : 1;
-      row.push({ r, c, isWall: false, weight });
+      // Default flat terrain
+      row.push({ r, c, isWall: false, weight: 1 });
     }
     grid.push(row);
   }
+  
+  // Create a thick vertical "mud river" in the center with high weight
+  const centerCol = Math.floor(COLS / 2);
+  // Make a 2-column wide vertical high-cost barrier
+  const wallCols = [centerCol - 1, centerCol].filter(c => c >= 0 && c < COLS);
+
+  // Leave two holes at the bottom row (same columns) for passage
+  const holeCols = wallCols.slice();
+
+  for (let r = 0; r < ROWS; r++) {
+    for (const c of wallCols) {
+      if (r < ROWS - 1) {
+        grid[r][c].weight = 15;
+      } else {
+        // bottom row: holes at the selected columns
+        grid[r][c].weight = holeCols.includes(c) ? 1 : 15;
+      }
+    }
+  }
+
   return grid;
 };
 
@@ -153,6 +172,7 @@ const run = async () => {
             executionTimeMs: res && res.executionTimeMs != null ? Number(res.executionTimeMs.toFixed(3)) : '',
             nodesExpanded: res && res.nodesExpanded != null ? res.nodesExpanded : '',
             pathLength: res && res.pathLength != null ? res.pathLength : '',
+            totalCost: res && res.totalCost != null ? res.totalCost : '',
             pathFound: res && typeof res.pathFound === 'boolean' ? res.pathFound : '',
             maxFringeSize: res && res.maxFringeSize != null ? res.maxFringeSize : '',
           };
@@ -166,7 +186,7 @@ const run = async () => {
   }
 
   // Write CSV
-  const header = ['algorithm','map','trial','executionTimeMs','nodesExpanded','pathLength','pathFound','maxFringeSize'];
+  const header = ['algorithm','map','trial','executionTimeMs','nodesExpanded','pathLength','totalCost','pathFound','maxFringeSize'];
   const lines = [header.join(',')];
   for (const r of results) {
     const row = [
@@ -176,6 +196,7 @@ const run = async () => {
       r.executionTimeMs,
       r.nodesExpanded,
       r.pathLength,
+      r.totalCost,
       r.pathFound,
       r.maxFringeSize,
     ];

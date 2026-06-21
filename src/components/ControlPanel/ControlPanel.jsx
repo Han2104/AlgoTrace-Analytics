@@ -91,7 +91,24 @@ export const ControlPanel = ({
             } else if (type === 'social') {
               // Trống
             } else if (type === 'traffic') {
-              if (Math.random() < 0.25) newGrid[r][c].weight = Math.floor(Math.random() * 3) * 10 + 10;
+              // Create a deterministic central "mud river" barrier for traffic scenario
+              const centerCol = Math.floor(COLS / 2);
+              const wallCols = [];
+              for (let dc = -1; dc <= 1; dc++) {
+                const wc = centerCol + dc;
+                if (wc >= 0 && wc < COLS) wallCols.push(wc);
+              }
+              const holeCols = [centerCol];
+              if (centerCol + 1 < COLS) holeCols.push(centerCol + 1);
+
+              if (wallCols.includes(c)) {
+                if (r < ROWS - 1) {
+                  newGrid[r][c].weight = 10;
+                } else {
+                  // bottom row: leave holes at selected columns
+                  newGrid[r][c].weight = holeCols.includes(c) ? 1 : 10;
+                }
+              }
             } else if (type === 'warehouse') {
               if (r % 3 !== 0 && c > 1 && c < COLS - 2 && c % 3 !== 0) {
                   newGrid[r][c].isWall = true;
