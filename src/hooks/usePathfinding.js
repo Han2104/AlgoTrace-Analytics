@@ -7,8 +7,8 @@ import { runAStar } from '../algorithms/astar';
 
 export const usePathfinding = () => {
   const [baseGrid, setBaseGrid] = useState(createInitialGrid());
-  const [startNode, setStartNode] = useState({ r: 7, c: 3 });
-  const [endNode, setEndNode] = useState({ r: 7, c: 16 });
+  const [startNode, setStartNode] = useState({ r: 24, c: 10 });
+  const [endNode, setEndNode] = useState({ r: 24, c: 54 });
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [speed, setSpeed] = useState(50);

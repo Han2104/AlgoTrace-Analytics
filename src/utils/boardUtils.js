@@ -1,5 +1,5 @@
-export const ROWS = 15;
-export const COLS = 20;
+export const ROWS = 47;
+export const COLS = 64;
 
 export const createInitialGrid = () => {
   const grid = [];
