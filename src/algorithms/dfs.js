@@ -1,53 +1,80 @@
 import { getNeighbors, updateNodeDOM } from '../utils/boardUtils';
 
-export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, updateStats) => {
+// runDFS
+// Header: Cài đặt Depth-First Search (DFS) theo dạng lặp sử dụng stack rõ ràng.
+// Dùng để khám phá sâu theo nhánh; không đảm bảo tìm đường đi ngắn nhất.
+export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, updateStats, isBenchmark = false) => {
+  // Open set: stack (LIFO). Cài đặt dạng lặp tránh rủi ro tràn ngăn xếp khi đệ quy
+  // quá sâu và cho phép ta kiểm soát rõ ràng hành vi push/pop.
   let stack = [{ r: startNode.r, c: startNode.c, path: [], cost: 0 }];
   let visitedNodes = 0;
-  
-  // Clone to track visited state specific to DFS
-  let grid = baseGrid.map(row => row.map(n => ({...n, isVisited: false})));
+  let maxFringeSize = stack.length;
+  const t0 = isBenchmark ? performance.now() : null;
+
+  // Clone grid để đánh dấu visited riêng cho thuật toán này.
+  let grid = baseGrid.map(row => row.map(n => ({ ...n, isVisited: false })));
 
   while (stack.length > 0) {
     const current = stack.pop();
     const { r, c, path, cost } = current;
-    
+
+    // Nếu đã visited (được mark bởi một lần push trước đó) thì bỏ qua.
     if (grid[r][c].isVisited) continue;
-    
+
     grid[r][c].isVisited = true;
     visitedNodes++;
-    updateStats({ visited: visitedNodes, cost: 0, status: 'Đang chạy...' });
-    
-    const newPath = [...path, {r, c}];
+    if (!isBenchmark) updateStats({ visited: visitedNodes, cost: 0, status: 'Đang chạy...' });
+
+    const newPath = [...path, { r, c }];
     const newCost = cost + grid[r][c].weight;
-    
-    if (r !== startNode.r || c !== startNode.c) {
-      updateNodeDOM(algoId, r, c, ['visited'], ['processing']);
+
+    if (!isBenchmark) {
+      if (r !== startNode.r || c !== startNode.c) {
+        updateNodeDOM(algoId, r, c, ['visited'], ['processing']);
+      }
     }
 
     if (r === endNode.r && c === endNode.c) {
+      if (isBenchmark) {
+        const end = performance.now();
+        return { pathFound: true, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: newPath.length, maxFringeSize };
+      }
       return { path: newPath, cost: newCost };
     }
-    
-    await sleep();
-    
+
+    if (!isBenchmark) await sleep();
+
     const neighbors = getNeighbors(grid, r, c);
     let unvisitedCount = 0;
-    
+
+    // Duyệt neighbors theo thứ tự ngược lại để kiểm soát thứ tự khám phá một cách xác định
     for (let i = neighbors.length - 1; i >= 0; i--) {
       const n = neighbors[i];
       if (!grid[n.r][n.c].isVisited) {
+        // Push neighbor kèm path hiện tại (đánh đổi bộ nhớ so với lưu parent map)
         stack.push({ r: n.r, c: n.c, path: newPath, cost: newCost });
-        if (n.r !== endNode.r || n.c !== endNode.c) {
+        maxFringeSize = Math.max(maxFringeSize, stack.length);
+        if (!isBenchmark) {
+          if (n.r !== endNode.r || n.c !== endNode.c) {
             updateNodeDOM(algoId, n.r, n.c, ['processing']);
+          }
         }
         unvisitedCount++;
       }
     }
-    
+
     if (unvisitedCount === 0 && (r !== startNode.r || c !== startNode.c)) {
-      updateNodeDOM(algoId, r, c, ['backtrack'], ['visited']);
-      await sleep();
+      // Mark backtrack visually: node đã không còn neighbor chưa thăm
+      if (!isBenchmark) {
+        updateNodeDOM(algoId, r, c, ['backtrack'], ['visited']);
+        await sleep();
+      }
     }
+  }
+
+  if (isBenchmark) {
+    const end = performance.now();
+    return { pathFound: false, executionTimeMs: end - t0, nodesExpanded: visitedNodes, pathLength: 0, maxFringeSize };
   }
   return null;
 };

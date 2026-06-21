@@ -24,10 +24,14 @@ export const getNeighbors = (grid, r, c) => {
   if (c < COLS - 1) neighbors.push(grid[r][c + 1]);
   if (r < ROWS - 1) neighbors.push(grid[r + 1][c]);
   if (c > 0) neighbors.push(grid[r][c - 1]);
+  // Lưu ý: thứ tự neighbors ảnh hưởng đến mẫu khám phá (đặc biệt với DFS).
+  // Lọc wall ngay từ đầu sẽ giảm khối lượng công việc cho các thuật toán.
   return neighbors.filter(n => !n.isWall);
 };
 
 // Global helper to update DOM classes directly to bypass React renders for animation speed
+// Hàm helper toàn cục cập nhật class DOM trực tiếp để tăng tốc animation
+// (bỏ qua việc render lại React khi cần tốc độ hiển thị cao).
 export const updateNodeDOM = (algoId, r, c, classesToAdd, classesToRemove = [], htmlContent = null) => {
   const el = document.getElementById(`node-${algoId}-${r}-${c}`);
   if (el) {

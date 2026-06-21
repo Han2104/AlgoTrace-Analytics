@@ -1,3 +1,858 @@
+
+Trò chuyện với Gemini
+Bây giờ tôi sẽ gửi bạn tổng thể project # PROJECT EXPLANATION
+
+
+
+Tài liệu này giải thích cấu trúc, luồng dữ liệu và các chi tiết thuật toán cốt lõi (BFS, DFS, Dijkstra, A*) của dự án Pathfinding Visualizer.
+
+
+
+## 1. Cấu trúc dự án (các file/thư mục quan trọng)
+
+- `src/algorithms/` : Thư mục chứa cài đặt thuật toán cho React app (A*, Dijkstra, BFS, DFS).
+
+- `js/algorithms/` : Bản JavaScript thuần (dùng cho phiên bản non-React/vanilla demo). Có thể tương đồng logic với `src/algorithms`.
+
+- `src/components/Board/` : `Board.jsx`, `Node.jsx` — quản lý state lưới, node, và render.
+
+- `src/hooks/usePathfinding.js` : Hook điều phối vòng đời chạy thuật toán, animation, và cập nhật UI.
+
+- `src/utils/boardUtils.js` : Các tiện ích thao tác ma trận, neighbor extraction, và reset/clone grid.
+
+- `src/utils/heuristics.js` : Hàm heuristic cho A* (Manhattan, Euclidean, v.v.).
+
+
+
+## 2. Workflow — luồng dữ liệu
+
+1. Người dùng tương tác trên UI (chọn start/finish, chướng ngại, thay đổi trọng số, bấm Run).
+
+2. `Board` / `ControlPanel` cập nhật state lưới (matrix of nodes) trong React state hoặc Context.
+
+3. `usePathfinding`/controller nhận snapshot của grid và tham số thuật toán (heuristic, allowDiagonal, weighted).
+
+4. Controller chuẩn bị input: chuyển grid thành cấu trúc nội bộ (ví dụ: adjacency via neighbor function), thiết lập `start`, `target`.
+
+5. Thuật toán được gọi (BFS/DFS/Dijkstra/A*). Thuật toán xuất ra hai thông tin chính:
+
+   - `visitedOrder` (danh sách node được mở/khám phá theo thứ tự) dùng để animate mở rộng.
+
+   - `shortestPath` (nếu tìm thấy) kết quả truy vết từ `target` về `start` để highlight.
+
+6. Controller trả dữ liệu cho UI; animation/visualizer render `visitedOrder` rồi `shortestPath`.
+
+
+
+## 3. Giải thích 4 thuật toán (cơ chế, Open/Closed)
+
+
+
+1) Breadth-First Search (BFS)
+
+- Mục đích: Tìm đường ngắn nhất theo số bước (số cạnh) trên đồ thị vô trọng số.
+
+- Cấu trúc mở/đóng: Dùng `Queue` làm Open set (FIFO). Khi node được lấy ra khỏi queue, đánh dấu Closed (visited) ngay lập tức để tránh lặp.
+
+- Tính chất: BFS khám phá theo ‘vòng tròn’ độ dần tăng của khoảng cách (số bước). Vì vậy, khi chạm target lần đầu là đường ngắn nhất về số bước.
+
+- Hạn chế: Không xử lý trọng số; với cạnh có chi phí khác nhau, BFS không đảm bảo chi phí nhỏ nhất.
+
+
+
+2) Depth-First Search (DFS)
+
+- Mục đích: Khám phá sâu nhanh, phù hợp để kiểm tra khả năng truy cập hoặc backtracking.
+
+- Cấu trúc mở/đóng: Dùng `Stack` (có thể đệ quy), đánh dấu visited khi push/pop tùy cài đặt (thường đánh dấu khi push để tránh push lại).
+
+- Tính chất: Không đảm bảo tìm đường ngắn nhất; có nguy cơ đi sâu vô tận nếu không kiểm soát (vòng lặp) — cần visited set.
+
+
+
+3) Dijkstra
+
+- Mục đích: Tìm đường chi phí nhỏ nhất trên đồ thị có trọng số không âm.
+
+- Cấu trúc mở/đóng: Dùng `Priority Queue` (min-heap) làm Open set, key = khoảng cách hiện tại `g(n)`. Closed set lưu các node đã được lấy ra với giá trị khoảng cách chính thức.
+
+- Cơ chế: Lấy node có `g` nhỏ nhất từ PQ, cập nhật khoảng cách các neighbor nếu `g(current)+cost < g(neighbor)`.
+
+- Tính chất: Đảm bảo tối ưu trong đồ thị trọng số không âm; khi có heuristic không trơn (như h(n)>0), dùng A* thay cho Dijkstra để tận dụng hướng tìm kiếm.
+
+
+
+4) A* (A-Star)
+
+- Mục đích: Tìm đường chi phí nhỏ nhất nhanh hơn Dijkstra bằng cách dùng heuristic hướng đến target.
+
+- Cấu trúc mở/đóng: Dùng `Priority Queue` (min-heap) theo `f(n)=g(n)+h(n)`. Closed set ghi node đã được xử lý (tức là giá trị `g` đã tối ưu).
+
+- Heuristic: Hàm `h(n)` ước lượng chi phí từ node hiện tại tới target (ví dụ Manhattan cho lưới 4-láng giềng). Heuristic cần là admissible (không bao giờ overestimate) để đảm bảo tính tối ưu.
+
+- Khi `h(n)=0` cho mọi n thì A* suy giảm thành Dijkstra.
+
+
+
+### So sánh qua ví dụ cụ thể
+
+- Khi có chướng ngại vật làm đường đi thẳng không khả thi: Dijkstra khám phá mọi hướng theo chi phí, còn A* ưu tiên các node gần target (theo h) nên thường mở ít node hơn, nhanh hơn.
+
+- Với đồ thị có trọng số: BFS/DFS không đảm bảo chi phí tối thiểu — phải dùng Dijkstra hoặc A*.
+
+- Với ma trận lớn và target xa: A* với heuristic tốt sẽ giảm đáng kể Open set so với Dijkstra.
+
+
+
+## 4. Ghi chú kỹ thuật quan trọng (các điểm cần lưu ý khi đọc code)
+
+- Priority Queue / Min-Heap: Cần hỗ trợ `decrease-key` logic hoặc push nhiều lần với `g` nhỏ hơn và check tại pop. Thiết kế PQ đơn giản: push (node, priority); khi pop, nếu node có `g` không khớp priority hiện tại thì bỏ qua.
+
+- Heuristic cho A*: Manhattan = |dx| + |dy| (for 4-neighbors) là admissible; Euclidean có thể dùng nếu di chuyển chéo cho phép.
+
+- Backtracking (reconstruct path): Lưu `prev`/`parent` cho mỗi node khi relax/update; truy vết từ `target` về `start` theo parent để tạo đường đi (reverse cuối cùng).
+
+- Tránh lặp vô hạn: Luôn duy trì `visited`/`closed` set; với DFS đệ quy, giới hạn độ sâu hoặc visited set là bắt buộc.
+
+- Tránh tràn bộ nhớ: Sử dụng cấu trúc dữ liệu nhẹ (typed arrays nếu cần), xóa tham chiếu không cần thiết sau khi xong, và trong PQ tránh lưu bản sao toàn bộ grid trong mỗi entry.
+
+
+
+## 5. Tài liệu dành cho buổi bảo vệ (gợi ý đề xuất trình bày)
+
+- Mô tả luồng: UI -> State -> Controller -> Algorithm -> Vis (show visited nodes + final path).
+
+- Minh hoạ bằng ví dụ: so sánh BFS vs Dijkstra vs A* trên cùng một grid có trọng số và chướng ngại.
+
+- Những trade-offs: tốc độ (explored nodes), độ chính xác (optimality), bộ nhớ.
+
+
+
+---
+
+Tập trung đọc các file: [src/algorithms/astar.js](src/algorithms/astar.js), [src/algorithms/dijkstra.js](src/algorithms/dijkstra.js), [src/algorithms/bfs.js](src/algorithms/bfs.js), [src/algorithms/dfs.js](src/algorithms/dfs.js), và `usePathfinding.js` để hiểu cách controller kết nối UI và algorithms.
+
+AI giải thích code
+Gem tuỳ chỉnh
+Chào cậu. Với tư cách là người hướng dẫn, tôi đã nghiên cứu kỹ cấu trúc tổng thể của dự án Pathfinding Visualizer mà cậu cung cấp. Nhìn từ góc độ kỹ thuật hệ thống, cấu trúc này là một mô hình chuẩn để phân tách mối bận tâm (Separation of Concerns).
+
+Dưới đây là phân tích cấu trúc dự án từ góc nhìn của một lập trình viên C/Java, đi thẳng vào bản chất cơ chế hoạt động và chỉ ra các điểm rủi ro hệ thống mà cậu phải đối mặt.
+
+I. ĐỐI CHIẾU KIẾN TRÚC VỚI C / JAVA
+Để hiểu cách dự án này vận hành mà không bị ngợp bởi các thuật ngữ Web (React, Hook, Vanilla JS), cậu hãy tư duy dựa trên các khái niệm tương đương trong C và Java:
+
+1. File dữ liệu và Luồng điều khiển (Control Flow)
+src/algorithms/ (React) và js/algorithms/ (Vanilla JS): Bản chất là các thư viện hàm logic thuần túy (Pure Functions). Nó tương đương với việc cậu viết các file .c chứa hàm toán học/thuật toán trong C, hoặc một class chứa các static method xử lý dữ liệu trong Java. Chúng nhận đầu vào là con trỏ/tham chiếu ma trận và trả về danh sách kết quả, hoàn toàn tách biệt khỏi giao diện đồ họa.
+
+src/components/Board/ (Board.jsx, Node.jsx): Đây là tầng hiển thị (UI). Trong Java, nó tương đương với JavaFX hoặc Swing (JFrame, JPanel). Trong C, nó tương đương với các thư viện đồ họa như SDL hoặc OpenGL. File Node.jsx đóng vai trò như một phần tử đồ họa (pixel hoặc ô lưới), còn Board.jsx là một mảng 2 chiều quản lý các phần tử đó.
+
+src/hooks/usePathfinding.js: Đây là thành phần Controller (Bộ điều phối). Trong Java, nó tương đương với một class Handler quản lý vòng đời (Lifecycle) và luồng (Thread) chạy thuật toán. Nó đóng vai trò cầu nối: lấy dữ liệu từ giao diện, nạp vào thuật toán, nhận kết quả và kích hoạt cơ chế vẽ lại (Redraw) màn hình theo từng bước (Animation).
+
+2. Cơ chế quản lý trạng thái: React State vs C Pointers/Java Memory
+Trong C, khi cậu thay đổi một phần tử trong mảng matrix[i][j].isWall = true, thay đổi đó lập tức có hiệu lực tại ô nhớ đó. Tuy nhiên, màn hình sẽ không tự vẽ lại trừ khi cậu gọi hàm render().
+
+Trong thế giới Web (React), dữ liệu hiển thị được quản lý bằng State.
+
+Khi Board cập nhật trạng thái lưới, React sẽ tạo ra một bản chụp (Snapshot) mới của bộ nhớ, so sánh sự khác biệt (Diffing) và tự động ép UI vẽ lại. Điều này tương tự như cơ chế tự động Observer Pattern trong Java nâng cao.
+
+II. TƯ DUY PHẢN BIỆN VÀ RỦI RO KIẾN TRÚC TRONG WORKFLOW
+Dựa trên tài liệu mô tả luồng dữ liệu (Workflow), tôi phát hiện ra 3 điểm yếu chí mạng về mặt kiến trúc máy tính có thể khiến ứng dụng của cậu bị treo hoặc tràn bộ nhớ (Memory Leak/Out of Memory):
+
+1. Rủi ro nghẽn luồng chính (Main Thread Blocking) do tính chất Đơn luồng (Single-Threaded) của JavaScript
+Khác biệt cốt lõi: Trong Java, để chạy một thuật toán tìm đường nặng trên ma trận lớn, cậu sẽ đẩy nó vào một Thread hoặc ExecutorService riêng biệt (Background Thread) để không làm đóng băng giao diện (UI Thread).
+
+Rủi ro trong JS: JavaScript trên trình duyệt là đơn luồng (Single-threaded). Luồng xử lý logic thuật toán và luồng vẽ giao diện (Render) là MỘT.
+
+Hậu quả: Nếu thuật toán (BFS/DFS/Dijkstra/A*) chạy trên một ma trận kích thước lớn (ví dụ 1000×1000) và mất khoảng 2 giây để tính toán xong, toàn bộ trình duyệt của người dùng sẽ bị đóng băng (Freeze) trong 2 giây đó. Người dùng không thể click, không thể scroll, và trình duyệt sẽ báo lỗi "Page Unresponsive".
+
+Giải pháp đề xuất: Để xử lý triệt để, lập trình viên Web cao cấp sẽ phải đẩy các file trong src/algorithms/ vào một Web Worker (tương đương với một tiến trình/luồng chạy nền độc lập trong C/Java) nhằm giải phóng luồng chính cho UI.
+
+2. Thao tác sao chép bộ nhớ (Deep Clone vs Shallow Clone) trong JavaScript
+Tại bước 3 và 4 của luồng dữ liệu, controller nhận snapshot của grid và biến đổi cấu trúc.
+
+Trong C, việc truyền một mảng vào hàm thực chất là truyền con trỏ (Node grid), tốn 8 bytes. Trong Java, đó là truyền tham chiếu (Reference).
+
+Trong JS, nếu cậu không cẩn thận và thực hiện thay đổi trực tiếp trên đối tượng đồ họa (gọi là Mutation), cậu sẽ làm hỏng trạng thái của React, khiến UI không thể quay về trạng thái cũ khi reset. Ngược lại, nếu cậu thực hiện sao chép sâu (Deep Clone) toàn bộ ma trận dữ liệu sang một ma trận mới trước khi chạy thuật toán cho mỗi lần nhấn "Run", chi phí cấp phát bộ nhớ động (Heap Allocation) sẽ cực kỳ lớn. Nếu ma trận lớn, việc này sẽ kích hoạt trình thu gom rác (Garbage Collector - tương tự như JVM của Java) liên tục, gây ra hiện tượng giật lag (Jank) hiệu năng.
+
+3. Cấu trúc dữ liệu Priority Queue (Min-Heap) tự chế
+Tài liệu của cậu ghi: "Thiết kế PQ đơn giản: push (node, priority); khi pop, nếu node có g không khớp priority hiện tại thì bỏ qua."
+
+Phân tích: Đây là kỹ thuật "Lazy Deletion" (Xóa lười) thường dùng khi lười cài đặt hàm decrease-key dịch chuyển node trong Heap.
+
+Hệ lụy bộ nhớ: Nếu một đồ thị có mật độ cạnh lớn (Dense Graph), một node có thể bị đẩy vào Priority Queue hàng chục lần với các mức độ ưu tiên (priority) khác nhau trước khi nó thực sự được xử lý. Điều này làm kích thước của Queue phình to bất thường trong bộ nhớ trong suốt quá trình chạy thuật toán. Đối với hệ thống nhúng bằng C, đây là lỗi nghiêm trọng gây cạn kiệt tài nguyên RAM. Cậu cần lưu ý điểm này khi giải trình trong buổi bảo vệ.
+
+III. HƯỚNG DẪN CHI TIẾT VỀ LUỒNG HOẠT ĐỘNG THUẬT TOÁN
+Cậu cần làm rõ cấu trúc dữ liệu lưu trữ của các tập hợp Open Set và Closed Set trong mã nguồn (khi cậu gửi code cụ thể cho tôi):
+
+BFS/DFS: Trong C/Java, ta dùng mảng bool visited[V] để kiểm tra Closed Set với độ phức tạp O(1). Hãy kiểm tra xem mã nguồn JS của cậu đang dùng cấu trúc nào: mảng 2 chiều, một đối tượng cấu trúc bảng băm (Set), hay thuộc tính động gắn thẳng vào Object Node (node.isVisited = true). Nếu dùng cơ chế gắn thuộc tính động, cậu buộc phải có một hàm duyệt qua toàn bộ ma trận để xóa thuộc tính này trước mỗi lần chạy lại thuật toán (Reset cost O(V)).
+
+A (A-Star):* Hàm Heuristic (ví dụ Manhattan: ∣x 
+1
+​
+ −x 
+2
+​
+ ∣+∣y 
+1
+​
+ −y 
+2
+​
+ ∣) tính toán trên số thực hay số nguyên? Trong JS, mọi số đều là số thực 64-bit (Number - tương đương double trong C/Java). Do đó không có sự phân biệt giữa phép chia nguyên và phép chia thực, điều này có lợi cho việc tính toán khoảng cách Euclidean (dùng căn bậc hai) nhưng đòi hỏi phải cẩn thận với sai số dấu phẩy động khi so sánh độ ưu tiên bằng nhau trong Min-Heap.
+
+Bây giờ, cậu hãy gửi cho tôi file mã nguồn cụ thể đầu tiên (tôi đề xuất bắt đầu từ src/algorithms/bfs.js hoặc src/algorithms/dijkstra.js). Tôi sẽ mổ xẻ từng dòng code và chỉ ra cơ chế chạy ngầm bên dưới của nó cho cậu.
+
+file style.css có tác dụng gì
+
+AI giải thích code
+Gem tuỳ chỉnh
+File style.css (Cascading Style Sheets) là trung tâm điều khiển toàn bộ quy tắc hiển thị và đồ họa (Presentation Layer) của dự án Web. Nó tách biệt hoàn toàn phần nhìn (Giao diện người dùng) khỏi phần logic (thuật toán trong JavaScript).
+
+1. Đối chiếu với C và Java
+Trong Java: Nếu cậu từng làm việc với Java Swing, cậu sẽ nhớ các lệnh như node.setBackground(Color.BLUE), node.setPreferredSize(new Dimension(25, 25)) hoặc việc thiết lập GridBagLayout. CSS thực hiện chính xác công việc này nhưng ở quy mô toàn cục. Trong kiến trúc JavaFX hiện đại, nó chính là các file .css đi kèm với file giao diện .fxml.
+
+Trong C (Đồ họa máy tính): Nếu cậu dùng OpenGL hay SDL, cậu phải code các hàm tô màu pixel, cấu hình ma trận chiếu (projection matrix) hay thiết lập Viewport ngay trong mã nguồn. CSS đóng vai trò giống như một file cấu hình tham số Render (Render Configuration Pipeline) tĩnh. Trình duyệt (Browser Engine) sẽ đọc file này và gọi các hàm đồ họa cấp thấp (như Skia, OpenGL/DirectX) để vẽ giao diện ra màn hình thay cậu.
+
+2. Cơ chế hoạt động trong dự án Pathfinding
+Trong dự án này, ma trận của cậu bao gồm hàng nghìn ô vuông (Node). Thuật toán JS không trực tiếp ra lệnh "tô màu ô này thành xanh". Quá trình diễn ra như sau:
+
+Trong file style.css, người ta định nghĩa sẵn các "khuôn mẫu" (CSS Classes).
+
+Ví dụ: .node-wall { background-color: rgb(12, 53, 71); }
+
+.node-visited { background-color: rgba(0, 190, 218, 0.75); animation: visitedAnimation 1.5s; }
+
+Thuật toán JavaScript chạy, tìm ra ô cần đánh dấu là chướng ngại vật hoặc đã duyệt. JS chỉ đơn giản là gắn nhãn tên class (node-wall, node-visited) vào cấu trúc dữ liệu HTML (DOM) của ô đó.
+
+Trình duyệt tự động khớp nhãn đó với file style.css và kích hoạt luồng đồ họa để tô màu/tạo hiệu ứng (Animation).
+
+3. Phân tích phản biện: Rủi ro hiệu năng (Render Bottleneck)
+Nhìn từ góc độ kỹ thuật hệ thống, cấu trúc dựa vào CSS và HTML DOM này chứa đựng rủi ro chí mạng về hiệu năng đồ họa so với C/C++ thuần:
+
+Hiện tượng Reflow/Repaint (Vẽ lại đồ thị DOM): Một lưới 50 x 50 tương đương với 2500 phần tử (Object) độc lập trong bộ nhớ. Trong quá trình thuật toán (đặc biệt là BFS hoặc Dijkstra) loang ra, Controller JS sẽ thay đổi hàng chục/hàng trăm class CSS mỗi mili-giây. Trình duyệt phải liên tục tính toán lại thuộc tính đồ họa của hàng ngàn object này và gọi hàm Repaint (Vẽ lại). Điều này tạo ra Overhead khổng lồ, khiến GPU và CPU bị quá tải cục bộ, gây sụt giảm FPS (giật lag màn hình).
+
+Hardware Acceleration (Tăng tốc phần cứng): Các hiệu ứng mở rộng (Animation) khi một Node được tìm thấy thường được định nghĩa trong CSS (sử dụng @keyframes). Nếu viết CSS không chuẩn (thay đổi các thuộc tính như width, height, margin thay vì transform, opacity), trình duyệt sẽ đẩy việc tính toán đồ họa cho CPU xử lý (Software Rendering) thay vì GPU. Với 2500 phần tử, ứng dụng sẽ bị treo.
+
+Trong các hệ thống mô phỏng mật độ cao, lập trình viên sẽ vứt bỏ HTML/CSS cho lưới này và dùng công nghệ HTML5 Canvas (tương đương với việc cấp phát một Framebuffer 2D để vẽ trực tiếp bằng JS/C++ thông qua WebAssembly) nhằm đạt hiệu năng O(1) cho thao tác vẽ pixel. Tuy nhiên, ở mức độ dự án này, dùng CSS để quản lý trạng thái hiển thị của Node là phương pháp cơ bản và dễ theo dõi luồng dữ liệu nhất.
+
+Hãy trả lại tôi 1 file với comment giải thích tác dụng đầy đủ, ở trên cùng sẽ là nói sơ bộ về tác dụng của file này trong project
+
+:root {
+
+    /* Color Palette */
+
+    --bg-main: #0f172a;
+
+    --bg-sidebar: rgba(30, 41, 59, 0.85);
+
+    --bg-card: rgba(30, 41, 59, 0.7);
+
+    --text-main: #f8fafc;
+
+    --text-muted: #94a3b8;
+
+   
+
+    --primary: #3b82f6;
+
+    --primary-hover: #2563eb;
+
+    --secondary: #64748b;
+
+    --danger: #ef4444;
+
+    --warning: #f59e0b;
+
+    --success: #10b981;
+
+   
+
+    /* Grid Colors */
+
+    --cell-border: #1e293b;
+
+    --cell-unvisited: #e2e8f0;
+
+    --cell-wall: #0f172a;
+
+    --cell-processing: #fbbf24;
+
+    --cell-visited: #34d399;
+
+    --cell-path: #ef4444;
+
+    --cell-backtrack: #9ca3af;
+
+    --cell-start: #3b82f6;
+
+    --cell-end: #ef4444;
+
+    --cell-weight: #e0e7ff;
+
+   
+
+    --transition-speed: 0.3s;
+
+}
+
+
+
+* {
+
+    box-sizing: border-box;
+
+    margin: 0;
+
+    padding: 0;
+
+    font-family: 'Inter', sans-serif;
+
+}
+
+
+
+body {
+
+    background-color: var(--bg-main);
+
+    color: var(--text-main);
+
+    overflow: hidden;
+
+    height: 100vh;
+
+}
+
+
+
+.app-container {
+
+    display: flex;
+
+    height: 100vh;
+
+    width: 100vw;
+
+}
+
+
+
+/* Sidebar Styling */
+
+.sidebar {
+
+    width: 320px;
+
+    background: var(--bg-sidebar);
+
+    backdrop-filter: blur(16px);
+
+    -webkit-backdrop-filter: blur(16px);
+
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+
+    padding: 24px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 20px;
+
+    z-index: 10;
+
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+.logo {
+
+    font-size: 1.8rem;
+
+    font-weight: 700;
+
+    margin-bottom: 10px;
+
+    color: var(--text-main);
+
+    letter-spacing: 1px;
+
+}
+
+
+
+.logo span {
+
+    color: var(--primary);
+
+}
+
+
+
+.control-group {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+}
+
+
+
+.control-group label {
+
+    font-size: 0.9rem;
+
+    font-weight: 500;
+
+    color: var(--text-muted);
+
+}
+
+
+
+.modern-select {
+
+    padding: 10px 14px;
+
+    border-radius: 8px;
+
+    background: rgba(15, 23, 42, 0.6);
+
+    border: 1px solid rgba(255, 255, 255, 0.2);
+
+    color: white;
+
+    font-size: 1rem;
+
+    outline: none;
+
+    transition: border var(--transition-speed);
+
+}
+
+
+
+.modern-select:focus {
+
+    border-color: var(--primary);
+
+}
+
+
+
+.modern-slider {
+
+    width: 100%;
+
+    accent-color: var(--primary);
+
+}
+
+
+
+.button-group {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 10px;
+
+    margin-top: 10px;
+
+}
+
+
+
+.btn {
+
+    padding: 10px 14px;
+
+    border-radius: 8px;
+
+    border: none;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+
+    text-transform: uppercase;
+
+    font-size: 0.85rem;
+
+    letter-spacing: 0.5px;
+
+}
+
+
+
+.btn:disabled {
+
+    opacity: 0.5;
+
+    cursor: not-allowed;
+
+}
+
+
+
+.btn:active:not(:disabled) {
+
+    transform: scale(0.95);
+
+}
+
+
+
+.btn.primary { background: var(--primary); color: white; }
+
+.btn.primary:hover:not(:disabled) { background: var(--primary-hover); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+
+.btn.warning { background: var(--warning); color: white; }
+
+.btn.warning:hover:not(:disabled) { background: #d97706; }
+
+.btn.secondary { background: var(--secondary); color: white; }
+
+.btn.secondary:hover:not(:disabled) { background: #475569; }
+
+.btn.danger { background: var(--danger); color: white; }
+
+.btn.danger:hover:not(:disabled) { background: #b91c1c; }
+
+.btn.outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+
+.btn.outline:hover:not(:disabled) { background: rgba(59, 130, 246, 0.1); }
+
+
+
+.generator-group {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    margin-top: 10px;
+
+}
+
+
+
+.legend {
+
+    margin-top: 20px;
+
+    background: rgba(0, 0, 0, 0.2);
+
+    padding: 15px;
+
+    border-radius: 8px;
+
+    font-size: 0.85rem;
+
+}
+
+
+
+.legend h3 {
+
+    font-size: 1rem;
+
+    margin-bottom: 10px;
+
+    color: var(--text-muted);
+
+}
+
+
+
+.legend-item {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 8px;
+
+}
+
+
+
+.color-box {
+
+    width: 16px;
+
+    height: 16px;
+
+    border-radius: 4px;
+
+}
+
+
+
+.color-box.unvisited { background: var(--cell-unvisited); border: 1px solid #cbd5e1; }
+
+.color-box.processing { background: var(--cell-processing); }
+
+.color-box.visited { background: var(--cell-visited); }
+
+.color-box.path { background: var(--cell-path); }
+
+.color-box.wall { background: var(--cell-wall); border: 1px solid #334155; }
+
+.color-box.backtrack { background: var(--cell-backtrack); }
+
+
+
+.instructions {
+
+    margin-top: auto;
+
+    font-size: 0.85rem;
+
+    color: var(--text-muted);
+
+    line-height: 1.5;
+
+}
+
+
+
+/* Main Content */
+
+.main-content {
+
+    flex: 1;
+
+    display: flex;
+
+    flex-direction: column;
+
+    position: relative;
+
+    background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+
+}
+
+
+
+.dashboard {
+
+    height: 80px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 30px;
+
+    background: rgba(15, 23, 42, 0.5);
+
+    backdrop-filter: blur(8px);
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+    z-index: 5;
+
+}
+
+
+
+.stat-card {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    background: var(--bg-card);
+
+    padding: 10px 20px;
+
+    border-radius: 12px;
+
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+
+    min-width: 150px;
+
+}
+
+
+
+.stat-label {
+
+    font-size: 0.8rem;
+
+    color: var(--text-muted);
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.5px;
+
+}
+
+
+
+.stat-value {
+
+    font-size: 1.2rem;
+
+    font-weight: 700;
+
+    color: var(--text-main);
+
+    margin-top: 4px;
+
+}
+
+
+
+/* Grid */
+
+.grid-container {
+
+    flex: 1;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    padding: 20px;
+
+    overflow: auto;
+
+}
+
+
+
+.grid {
+
+    display: inline-grid;
+
+    border: 1px solid var(--cell-border);
+
+    background-color: var(--cell-border);
+
+    gap: 1px;
+
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+
+    border-radius: 4px;
+
+    overflow: hidden;
+
+}
+
+
+
+.node {
+
+    width: 25px;
+
+    height: 25px;
+
+    background-color: var(--cell-unvisited);
+
+    transition: background-color 0.1s ease-out, transform 0.2s ease;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 8px;
+
+    color: #1e293b;
+
+    font-weight: bold;
+
+    user-select: none;
+
+}
+
+
+
+.node.wall { background-color: var(--cell-wall); animation: popWall 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(255,255,255,0.1); }
+
+.node.start { background-color: var(--cell-start) !important; border-radius: 50%; transform: scale(0.9); box-shadow: 0 0 10px var(--cell-start); z-index: 2; }
+
+.node.end { background-color: var(--cell-end) !important; border-radius: 50%; transform: scale(0.9); box-shadow: 0 0 10px var(--cell-end); z-index: 2; }
+
+.node.visited { background-color: var(--cell-visited); animation: visitedAnimation 1.5s ease-out forwards; }
+
+.node.processing { background-color: var(--cell-processing); animation: processingAnimation 0.5s infinite alternate; }
+
+.node.path { background-color: var(--cell-path); animation: pathAnimation 0.5s ease-out forwards; border-radius: 20%; box-shadow: 0 0 8px var(--cell-path); z-index: 1; }
+
+.node.backtrack { background-color: var(--cell-backtrack); animation: backtrackAnimation 0.3s ease-out forwards; }
+
+.node.weight-10 { background-color: #d1fae5; }
+
+.node.weight-20 { background-color: #fef08a; }
+
+.node.weight-30 { background-color: #fca5a5; }
+
+.node .cost-text { pointer-events: none; z-index: 5; }
+
+
+
+@keyframes popWall { 0% { transform: scale(0.3); border-radius: 50%; } 50% { transform: scale(1.2); } 100% { transform: scale(1); border-radius: 0; } }
+
+@keyframes visitedAnimation { 0% { transform: scale(0.3); background-color: rgba(17, 104, 217, 0.75); border-radius: 100%; } 50% { background-color: rgba(17, 217, 187, 0.75); } 75% { transform: scale(1.2); background-color: var(--cell-visited); } 100% { transform: scale(1); background-color: var(--cell-visited); border-radius: 0; } }
+
+@keyframes processingAnimation { 0% { transform: scale(0.8); background-color: #fde047; } 100% { transform: scale(1); background-color: var(--cell-processing); } }
+
+@keyframes pathAnimation { 0% { transform: scale(0.6); background-color: #f87171; border-radius: 50%; } 50% { transform: scale(1.2); } 100% { transform: scale(1); background-color: var(--cell-path); } }
+
+@keyframes backtrackAnimation { 0% { transform: scale(1.1); background-color: var(--danger); } 100% { transform: scale(1); background-color: var(--cell-backtrack); } }
+
+AI giải thích code
+Gem tuỳ chỉnh
+TỔNG QUAN KIẾN TRÚC HIỂN THỊ (PRESENTATION LAYER)
+Trong mô hình kiến trúc phần mềm, file style.css này đóng vai trò là Tầng Trình diễn (Presentation Layer).
+
+1. Đối chiếu với C/Java:
+
+Trong C (OpenGL/SDL): Để vẽ một lưới vuông, cậu phải định nghĩa các đỉnh (vertices), nạp shader, và gọi vòng lặp render glClear(), glDrawArrays() liên tục mỗi khung hình.
+
+Trong Java (Swing/JavaFX): Cậu ghi đè hàm paintComponent(Graphics g) và tính toán tọa độ g.fillRect(x, y, width, height) bằng vòng lặp for lồng nhau.
+
+Trong Web (HTML/CSS): Khác biệt cốt lõi là tính Khai báo (Declarative). Cậu không viết lệnh "vẽ như thế nào", mà cậu định nghĩa "trạng thái này trông ra sao". Trình duyệt (với engine viết bằng C++) sẽ tự động nội suy và vẽ ra màn hình (Render). CSS đóng vai trò như một tập hợp các #define macro và các hàm cấu hình đồ họa tĩnh.
+
+2. Đánh giá rủi ro hệ thống (Critical Analysis):
+
+Điểm sáng: Sử dụng CSS Animation (@keyframes) và transform. Trình duyệt sẽ đẩy các tác vụ nội suy hình học (scale, xoay) sang GPU xử lý (Hardware Acceleration), giảm tải cho luồng chính (Main Thread) của JavaScript.
+
+Điểm yếu chí mạng - DOM Reflow/Repaint: Cậu đang dùng HTML DOM để tạo lưới (display: inline-grid). Mỗi ô (.node) là một object độc lập trong bộ nhớ. Khi JS đổi class của một ô từ .node sang .node visited, nó thay đổi background-color. Việc thay đổi màu sắc không được GPU hỗ trợ tối ưu hoàn toàn, nó buộc CPU phải tính toán lại pixel của ô đó (Repaint). Nếu thuật toán BFS mở rộng 500 node/giây, CPU phải gọi hàm Repaint 500 lần/giây. Với lưới lớn (ví dụ 100×100), ứng dụng sẽ bị nghẽn cổ chai hiển thị (Render Bottleneck) và sụt giảm FPS nghiêm trọng. Ở mức độ chuyên nghiệp, lưới đồ thị mật độ cao phải được render bằng HTML5 Canvas (vẽ trực tiếp lên buffer pixel) thay vì DOM/CSS.
+
+Dưới đây là file của cậu, tôi đã thêm các comment phân tích cơ chế hoạt động của từng khối mã:
+
+CSS
+/* ==========================================================================
+   TẦNG CẤU HÌNH BIẾN TOÀN CỤC (GLOBAL MACROS / CONSTANTS)
+   Tương đương với các chỉ thị #define trong C hoặc 'public static final' trong Java.
+   Việc gom nhóm ở :root giúp cậu dễ dàng làm tính năng Dark/Light mode sau này 
+   bằng cách thay đổi các biến này bằng JS với độ phức tạp $O(1)$.
+   ========================================================================== */
 :root {
     /* Color Palette */
     --bg-main: #0f172a;
@@ -13,7 +868,7 @@
     --warning: #f59e0b;
     --success: #10b981;
     
-    /* Grid Colors */
+    /* Grid Colors: Bảng màu ánh xạ cho các trạng thái của đồ thị (State Mapping) */
     --cell-border: #1e293b;
     --cell-unvisited: #e2e8f0;
     --cell-wall: #0f172a;
@@ -28,6 +883,9 @@
     --transition-speed: 0.3s;
 }
 
+/* Khởi tạo Viewport/Canvas tĩnh. 
+   box-sizing: border-box đảm bảo padding/border không làm sai lệch tính toán kích thước ma trận.
+*/
 * {
     box-sizing: border-box;
     margin: 0;
@@ -35,10 +893,11 @@
     font-family: 'Inter', sans-serif;
 }
 
+/* Ngăn chặn scrollbar xuất hiện, ép khung hình giống như một màn hình console cố định */
 body {
     background-color: var(--bg-main);
     color: var(--text-main);
-    overflow: hidden;
+    overflow: hidden; 
     height: 100vh;
 }
 
@@ -48,7 +907,12 @@ body {
     width: 100vw;
 }
 
-/* Sidebar Styling */
+/* ==========================================================================
+   TẦNG GIAO DIỆN ĐIỀU KHIỂN (UI CONTROLS)
+   Tương đương với vùng chứa các JButton, JComboBox trong Java Swing.
+   Thuộc tính 'backdrop-filter: blur' yêu cầu GPU tính toán bộ lọc ảnh thời gian thực,
+   khá tốn tài nguyên nhưng mang lại hiệu ứng kính mờ (Glassmorphism).
+   ========================================================================== */
 .sidebar {
     width: 320px;
     background: var(--bg-sidebar);
@@ -59,7 +923,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    z-index: 10;
+    z-index: 10; /* Trục Z: Đảm bảo sidebar luôn đè lên lưới */
     box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -114,6 +978,8 @@ body {
     margin-top: 10px;
 }
 
+/* Base class cho các nút bấm. Pseudo-class :disabled ngăn chặn tương tác 
+   khi thuật toán đang chạy (tránh lỗi Concurrency do người dùng bấm nhiều lần). */
 .btn {
     padding: 10px 14px;
     border-radius: 8px;
@@ -135,6 +1001,7 @@ body {
     transform: scale(0.95);
 }
 
+/* Đa hình (Polymorphism) trong CSS: Kế thừa thuộc tính cơ bản của .btn và ghi đè màu sắc */
 .btn.primary { background: var(--primary); color: white; }
 .btn.primary:hover:not(:disabled) { background: var(--primary-hover); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
 .btn.warning { background: var(--warning); color: white; }
@@ -194,7 +1061,9 @@ body {
     line-height: 1.5;
 }
 
-/* Main Content */
+/* ==========================================================================
+   TẦNG VIEWPORT LƯỚI (MAIN GRAPHICS AREA)
+   ========================================================================== */
 .main-content {
     flex: 1;
     display: flex;
@@ -241,7 +1110,7 @@ body {
     margin-top: 4px;
 }
 
-/* Grid */
+/* Vùng chứa lưới đồ thị. 'overflow: auto' tạo thanh cuộn nếu ma trận quá lớn. */
 .grid-container {
     flex: 1;
     display: flex;
@@ -251,20 +1120,28 @@ body {
     overflow: auto;
 }
 
+/* Khung lưới. Thuộc tính 'display: inline-grid' sẽ ánh xạ cấu trúc DOM 
+   thành một lưới tọa độ 2D. Các ô bên trong tự động lấp đầy. */
 .grid {
     display: inline-grid;
     border: 1px solid var(--cell-border);
     background-color: var(--cell-border);
-    gap: 1px;
+    gap: 1px; /* Tạo khoảng cách 1px giữa các ô, đóng vai trò làm đường viền lưới (grid lines) */
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     border-radius: 4px;
     overflow: hidden;
 }
 
+/* ==========================================================================
+   ATOMIC GRAPHICS COMPONENT (PHẦN TỬ ĐỒ HỌA CƠ SỞ)
+   Tương đương với một Pixel/Vertex. Mỗi thuộc tính thay đổi ở đây tác động
+   đến n * m phần tử trên màn hình.
+   ========================================================================== */
 .node {
     width: 25px;
     height: 25px;
     background-color: var(--cell-unvisited);
+    /* Transition nội suy sự kiện hover hoặc thay đổi class nhỏ */
     transition: background-color 0.1s ease-out, transform 0.2s ease;
     display: flex;
     align-items: center;
@@ -272,23 +1149,69 @@ body {
     font-size: 8px;
     color: #1e293b;
     font-weight: bold;
-    user-select: none;
+    user-select: none; /* Ngăn chặn bôi đen text khi rê chuột tạo chướng ngại vật */
 }
 
+/* TRẠNG THÁI NODE (STATE BITMASKS) 
+   Khi controller JS đẩy trạng thái từ Closed Set, nó sẽ nối thêm tên class này vào DOM.
+   Ví dụ: document.getElementById('node-2-3').className = "node visited";
+*/
 .node.wall { background-color: var(--cell-wall); animation: popWall 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 1px solid rgba(255,255,255,0.1); }
 .node.start { background-color: var(--cell-start) !important; border-radius: 50%; transform: scale(0.9); box-shadow: 0 0 10px var(--cell-start); z-index: 2; }
 .node.end { background-color: var(--cell-end) !important; border-radius: 50%; transform: scale(0.9); box-shadow: 0 0 10px var(--cell-end); z-index: 2; }
+
+/* Các node được quét qua (Closed set) và đang chờ (Open set) */
 .node.visited { background-color: var(--cell-visited); animation: visitedAnimation 1.5s ease-out forwards; }
 .node.processing { background-color: var(--cell-processing); animation: processingAnimation 0.5s infinite alternate; }
+
+/* Trạng thái đường dẫn cuối cùng (Truy vết Backtracking) */
 .node.path { background-color: var(--cell-path); animation: pathAnimation 0.5s ease-out forwards; border-radius: 20%; box-shadow: 0 0 8px var(--cell-path); z-index: 1; }
 .node.backtrack { background-color: var(--cell-backtrack); animation: backtrackAnimation 0.3s ease-out forwards; }
+
+/* Trọng số đồ thị cho thuật toán Dijkstra/A* */
 .node.weight-10 { background-color: #d1fae5; }
 .node.weight-20 { background-color: #fef08a; }
 .node.weight-30 { background-color: #fca5a5; }
+
+/* Tránh con trỏ chuột tương tác nhầm vào text trọng số thay vì chính cái Node */
 .node .cost-text { pointer-events: none; z-index: 5; }
 
-@keyframes popWall { 0% { transform: scale(0.3); border-radius: 50%; } 50% { transform: scale(1.2); } 100% { transform: scale(1); border-radius: 0; } }
-@keyframes visitedAnimation { 0% { transform: scale(0.3); background-color: rgba(17, 104, 217, 0.75); border-radius: 100%; } 50% { background-color: rgba(17, 217, 187, 0.75); } 75% { transform: scale(1.2); background-color: var(--cell-visited); } 100% { transform: scale(1); background-color: var(--cell-visited); border-radius: 0; } }
-@keyframes processingAnimation { 0% { transform: scale(0.8); background-color: #fde047; } 100% { transform: scale(1); background-color: var(--cell-processing); } }
-@keyframes pathAnimation { 0% { transform: scale(0.6); background-color: #f87171; border-radius: 50%; } 50% { transform: scale(1.2); } 100% { transform: scale(1); background-color: var(--cell-path); } }
-@keyframes backtrackAnimation { 0% { transform: scale(1.1); background-color: var(--danger); } 100% { transform: scale(1); background-color: var(--cell-backtrack); } }
+/* ==========================================================================
+   HARDWARE-ACCELERATED ANIMATIONS (VÒNG LẶP RENDER GPU)
+   Lưu ý: 'transform' (scale) sẽ được GPU xử lý rất nhanh với chi phí $O(1)$. 
+   Nhưng 'background-color' buộc CPU phải Repaint. Đây là điểm thắt cổ chai 
+   hiệu năng nếu JS kích hoạt hàng trăm animation cùng lúc trong 1 tick.
+   ========================================================================== */
+@keyframes popWall { 
+    0% { transform: scale(0.3); border-radius: 50%; } 
+    50% { transform: scale(1.2); } 
+    100% { transform: scale(1); border-radius: 0; } 
+}
+
+@keyframes visitedAnimation { 
+    0% { transform: scale(0.3); background-color: rgba(17, 104, 217, 0.75); border-radius: 100%; } 
+    50% { background-color: rgba(17, 217, 187, 0.75); } 
+    75% { transform: scale(1.2); background-color: var(--cell-visited); } 
+    100% { transform: scale(1); background-color: var(--cell-visited); border-radius: 0; } 
+}
+
+@keyframes processingAnimation { 
+    0% { transform: scale(0.8); background-color: #fde047; } 
+    100% { transform: scale(1); background-color: var(--cell-processing); } 
+}
+
+@keyframes pathAnimation { 
+    0% { transform: scale(0.6); background-color: #f87171; border-radius: 50%; } 
+    50% { transform: scale(1.2); } 
+    100% { transform: scale(1); background-color: var(--cell-path); } 
+}
+
+@keyframes backtrackAnimation { 
+    0% { transform: scale(1.1); background-color: var(--danger); } 
+    100% { transform: scale(1); background-color: var(--cell-backtrack); } 
+}
+
+
+
+Gemini là AI và có thể mắc sai sót.
+

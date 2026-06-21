@@ -60,4 +60,33 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 📄 License
 This project is MIT licensed.
 
-Developed and maintained by Đỗ Quang Thắng.
+
+
+## 📊 Thu thập dữ liệu Benchmark
+
+Bạn có thể chạy benchmark hoàn toàn qua Terminal để thu thập số liệu cho 4 thuật toán (Dijkstra, DFS, BFS, A*).
+
+- Chạy benchmark:
+
+```bash
+node scripts/run_benchmark.js
+```
+
+- File kết quả: `benchmark_results.csv` (tạo ở thư mục gốc) với các cột:
+    - `algorithm`: Tên thuật toán (Dijkstra, DFS, BFS, A*)
+    - `map`: Loại bản đồ được thử nghiệm (Empty, Random20, Maze, Weighted, Warehouse)
+    - `trial`: Số lần chạy (1..500)
+    - `executionTimeMs`: Thời gian thực thi (ms)
+    - `nodesExpanded`: Số nút đã được mở/rà soát
+    - `pathLength`: Độ dài đường tìm được (nếu tìm thấy)
+    - `pathFound`: `true`/`false` cho biết có tìm thấy đường hay không
+    - `maxFringeSize`: Kích thước lớn nhất của fringe (queue/stack/priority array) trong quá trình chạy
+
+- 5 kịch bản map được thử nghiệm:
+    1. `Empty`: Lưới trống, không có vật cản.
+    2. `Random20`: Vật cản ngẫu nhiên ~20% ô.
+    3. `Maze`: Mê cung được sinh bằng mô phỏng backtracker (maze-like passages).
+    4. `Weighted`: Lưới không có tường nhưng có ô trọng số nặng ngẫu nhiên.
+    5. `Warehouse`: Các khối "kệ" (blocks) cố định tạo thành lối đi/đường ray như trong kho hàng.
+
+Ghi chú: Script chạy thuật toán ở chế độ benchmark (không cập nhật DOM hoặc React state) và chỉ trả về các metrics thuần túy để đảm bảo tính reproducible khi chạy trên Node.js.
