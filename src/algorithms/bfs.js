@@ -1,4 +1,4 @@
-import { getNeighbors, updateNodeDOM } from '../utils/boardUtils';
+import { getNeighbors } from '../utils/boardUtils';
 
 /**
  * Breadth-First Search (BFS) pathfinding algorithm.
@@ -28,8 +28,6 @@ import { getNeighbors, updateNodeDOM } from '../utils/boardUtils';
  */
 export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, updateStats) => {
   const startTime = performance.now();
-  let nodesProcessedInFrame = 0;
-  const batchSize = 15;
   /* ------------------------------------------------------------------
    * 1. Initialisation
    *    The queue holds objects: { r, c, path[], cost }.
@@ -47,6 +45,8 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
    * 2. BFS loop
    *    Continue until every reachable node has been explored.
    * ------------------------------------------------------------------ */
+  const startCalc = performance.now();
+
   while (queue.length > 0) {
     // Dequeue the front of the FIFO queue.
     const current = queue.shift();
@@ -54,21 +54,20 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
 
     // ── Stats ──────────────────────────────────────────────────────
     visitedNodes++;
-    nodesProcessedInFrame++;
     updateStats({ visited: visitedNodes, cost: 0, status: 'Đang chạy...', time: (performance.now() - startTime).toFixed(2) });
 
     // ── Visual feedback ────────────────────────────────────────────
     // Move this node from "processing" (pending) to "visited" (done).
-    if (r !== startNode.r || c !== startNode.c) {
-      updateNodeDOM(algoId, r, c, ['visited'], ['processing']);
-    }
+    // UI DOM updates removed from core algorithm
 
     // ── Goal check ─────────────────────────────────────────────────
     if (r === endNode.r && c === endNode.c) {
+      const endCalc = performance.now();
+      const calcTime = (endCalc - startCalc).toFixed(3);
       const elapsed = (performance.now() - startTime).toFixed(2);
       updateStats({ visited: visitedNodes, cost: cost, status: 'Hoàn thành', time: elapsed });
       // Reconstruct the full path by appending the goal cell.
-      return { path: [...path, { r, c }], cost: cost, time: elapsed };
+      return { path: [...path, { r, c }], cost: cost, time: elapsed, calcTime };
     }
 
     // ── Neighbour exploration ──────────────────────────────────────
@@ -84,18 +83,10 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
         // Enqueue with the path extended to include the current cell.
         queue.push({ r: n.r, c: n.c, path: [...path, { r, c }], cost: newCost });
 
-        // Highlight as "processing" unless it is the goal.
-        if (n.r !== endNode.r || n.c !== endNode.c) {
-          updateNodeDOM(algoId, n.r, n.c, ['processing']);
-        }
+        // UI DOM updates removed from core algorithm
       }
     }
-
-    // Yield control so the UI can re-render between iterations.
-    if (nodesProcessedInFrame % batchSize === 0) {
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      nodesProcessedInFrame = 0;
-    }
+    // No yielding; algorithm runs at full CPU speed.
   }
 
   /* ------------------------------------------------------------------

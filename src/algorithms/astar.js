@@ -1,10 +1,8 @@
-import { getNeighbors, updateNodeDOM, ROWS, COLS } from '../utils/boardUtils';
+import { getNeighbors, ROWS, COLS } from '../utils/boardUtils';
 import { manhattanDistance } from '../utils/heuristics';
 
 export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, updateStats) => {
   const startTime = performance.now();
-  let nodesProcessedInFrame = 0;
-  const batchSize = 15;
 
   let pq = [{ r: startNode.r, c: startNode.c, g: 0, h: 0, f: 0, path: [] }];
   let gScore = Array(ROWS).fill().map(() => Array(COLS).fill(Infinity));
@@ -12,6 +10,8 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
   
   gScore[startNode.r][startNode.c] = 0;
   let visitedNodes = 0;
+
+  const startCalc = performance.now();
 
   while (pq.length > 0) {
     pq.sort((a, b) => a.f - b.f);
@@ -22,21 +22,14 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
     grid[r][c].isVisited = true;
     
     visitedNodes++;
-    nodesProcessedInFrame++;
     updateStats({ visited: visitedNodes, cost: g, status: 'Đang chạy...', time: (performance.now() - startTime).toFixed(2) });
 
-    if (r !== startNode.r || c !== startNode.c) {
-      let html = null;
-      if (r !== endNode.r || c !== endNode.c) {
-        html = `<span class="cost-text" style="font-size: 6px; line-height: 1;">f:${current.f}<br>g:${g}</span>`;
-      }
-      updateNodeDOM(algoId, r, c, ['visited'], ['processing'], html);
-    }
-
     if (r === endNode.r && c === endNode.c) {
+      const endCalc = performance.now();
+      const calcTime = (endCalc - startCalc).toFixed(3);
       const elapsed = (performance.now() - startTime).toFixed(2);
       updateStats({ visited: visitedNodes, cost: g, status: 'Hoàn thành', time: elapsed });
-      return { path: [...path, {r, c}], cost: g, time: elapsed };
+      return { path: [...path, {r, c}], cost: g, time: elapsed, calcTime };
     }
 
     const neighbors = getNeighbors(grid, r, c);
@@ -46,21 +39,11 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
       const tentativeG = g + grid[n.r][n.c].weight;
       if (tentativeG < gScore[n.r][n.c]) {
         gScore[n.r][n.c] = tentativeG;
-        const h = manhattanDistance(n.r, n.c, endNode.r, endNode.c) * 10; 
+        const h = manhattanDistance(n.r, n.c, endNode.r, endNode.c);
         const f = tentativeG + h;
         
         pq.push({ r: n.r, c: n.c, g: tentativeG, h: h, f: f, path: [...path, {r, c}] });
-        
-        if (n.r !== endNode.r || n.c !== endNode.c) {
-          updateNodeDOM(algoId, n.r, n.c, ['processing']);
-        }
       }
-    }
-
-    if (nodesProcessedInFrame % batchSize === 0) {
-      // yield to the browser to allow a frame paint
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      nodesProcessedInFrame = 0;
     }
   }
   return null;

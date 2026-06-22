@@ -100,14 +100,23 @@ export const usePathfinding = () => {
     setIsPaused(false);
     pauseRef.current = false;
 
-    // ----- Hàm phụ: animate đường đi từng ô một -----
-    const animatePath = async (algoId, path, cost) => {
-      setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], cost, status: 'Hoàn thành' } }));
-      for (let i = path.length - 2; i > 0; i--) {
-        if (stopRef.current) return;
-        updateNodeDOM(algoId, path[i].r, path[i].c, ['path']);
-        await sleep();
+    // ----- Hàm phụ: draw final path at once (no per-node sleep) -----
+    const drawFinalPath = (algoId, path, cost, calcTime) => {
+      // Draw all path cells at full speed (no delays)
+      for (let i = path.length - 1; i >= 0; i--) {
+        const cell = path[i];
+        updateNodeDOM(algoId, cell.r, cell.c, ['path']);
       }
+      // Set a clear, prominent status including calcTime and cost
+      setStats(prev => ({
+        ...prev,
+        [algoId]: {
+          ...prev[algoId],
+          cost,
+          status: `HOÀN THÀNH - ${calcTime} ms`,
+          statusClass: 'neon-success'
+        }
+      }));
     };
 
     // ----- Hàm phụ: callback để mỗi thuật toán tự cập nhật stats -----
@@ -121,9 +130,10 @@ export const usePathfinding = () => {
       try {
         // Gọi hàm thuật toán (runDFS, runBFS, runDijkstra, runAStar)
         const result = await runFunc(algoId, baseGrid, startNode, endNode, sleep, updateStat(algoId));
-        if (stopRef.current) return;       // Nếu bị clear thì không animate
+        if (stopRef.current) return;       // Nếu bị clear thì không render
         if (result && result.path) {
-          await animatePath(algoId, result.path, result.cost); // Tô đường đi
+          // Draw final path once and set a prominent status including calcTime
+          drawFinalPath(algoId, result.path, result.cost, result.calcTime || result.time || 'N/A');
         } else {
           // Không tìm thấy đường
           setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], status: 'Không tìm thấy' } }));
