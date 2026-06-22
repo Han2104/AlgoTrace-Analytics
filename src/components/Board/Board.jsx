@@ -56,7 +56,7 @@ export const Board = ({ algoId, baseGrid, startNode, endNode, setBaseGrid, setSt
     <div className="grid-container" onMouseLeave={handleMouseUp}>
       <div 
         className="grid" 
-        style={{ gridTemplateColumns: `repeat(${baseGrid[0]?.length || 20}, 20px)`, gridTemplateRows: `repeat(${baseGrid.length || 15}, 20px)` }}
+        style={{ gridTemplateColumns: `repeat(${baseGrid[0]?.length || 40}, 10px)`, gridTemplateRows: `repeat(${baseGrid.length || 24}, 10px)` }}
       >
         {baseGrid.map((row, r) => 
           row.map((node, c) => {

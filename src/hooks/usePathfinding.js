@@ -8,8 +8,8 @@ import { runAStar } from '../algorithms/astar';
 export const usePathfinding = () => {
   // ---------- STATE (dùng cho UI, re-render khi thay đổi) ----------
   const [baseGrid, setBaseGrid] = useState(createInitialGrid());   // Grid gốc dùng chung cho 4 thuật toán
-  const [startNode, setStartNode] = useState({ r: 7, c: 3 });      // Ô bắt đầu (row, col)
-  const [endNode, setEndNode] = useState({ r: 7, c: 16 });         // Ô kết thúc (row, col)
+  const [startNode, setStartNode] = useState({ r: 12, c: 6 });     // Ô bắt đầu (row, col)
+  const [endNode, setEndNode] = useState({ r: 12, c: 33 });        // Ô kết thúc (row, col)
   const [isRunning, setIsRunning] = useState(false);                // Đang chạy thuật toán?
   const [isPaused, setIsPaused] = useState(false);                 // Đang tạm dừng?
   const [speed, setSpeed] = useState(50);                          // Tốc độ UI (0-100), dùng cho slider
@@ -32,7 +32,7 @@ export const usePathfinding = () => {
   // Đồng bộ cả speed (state -> UI) và speedRef (ref -> logic async)
   const updateSpeed = (val) => {
     setSpeed(val);                         // Cập nhật state để slider re-render
-    speedRef.current = 200 - (val * 1.9);  // Map 0-100 -> ~200ms-10ms delay
+    speedRef.current = Math.max(0, 100 - val);  // Map 0-100 -> ~100ms-0ms delay
   };
 
   // ---------- TẠM DỪNG / TIẾP TỤC ----------
@@ -100,15 +100,11 @@ export const usePathfinding = () => {
     setIsPaused(false);
     pauseRef.current = false;
 
-    // ----- Hàm phụ: animate đường đi sau khi thuật toán tìm ra path -----
+    // ----- Hàm phụ: tô đường đi ngay lập tức (không animate từng ô) -----
     const animatePath = async (algoId, path, cost) => {
-      // Cập nhật cost & trạng thái "Hoàn thành" cho thuật toán đó
       setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], cost, status: 'Hoàn thành' } }));
-      // Duyệt path từ cuối lên (bỏ start & end), tô màu từng ô
       for (let i = path.length - 2; i > 0; i--) {
-        if (stopRef.current) return;       // Nếu bị clear thì thoát
-        updateNodeDOM(algoId, path[i].r, path[i].c, ['path']); // Tô màu đường đi
-        await sleep();                     // Delay giữa các bước
+        updateNodeDOM(algoId, path[i].r, path[i].c, ['path']);
       }
     };
 

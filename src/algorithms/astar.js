@@ -23,7 +23,7 @@ export const runAStar = async (algoId, baseGrid, startNode, endNode, sleep, upda
     if (r !== startNode.r || c !== startNode.c) {
       let html = null;
       if (r !== endNode.r || c !== endNode.c) {
-        html = `<span class="cost-text" style="font-size: 7px; line-height: 1;">f:${current.f}<br>g:${g}</span>`;
+        html = `<span class="cost-text" style="font-size: 6px; line-height: 1;">f:${current.f}<br>g:${g}</span>`;
       }
       updateNodeDOM(algoId, r, c, ['visited'], ['processing'], html);
     }

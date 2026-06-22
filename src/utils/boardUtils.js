@@ -2,14 +2,14 @@
  * =====================================================
  *  KÍCH THƯỚC LƯỚI
  *  =====================================================
- *  ROWS = 15  (hàng, đánh số từ 0..14)
- *  COLS = 20  (cột, đánh số từ 0..19)
- *  Tổng số ô: 15 × 20 = 300 ô / board
+ *  ROWS = 24  (hàng, đánh số từ 0..23)
+ *  COLS = 40  (cột, đánh số từ 0..39)
+ *  Tổng số ô: 24 × 40 = 960 ô / board
  *  Vì có 4 board (DFS, BFS, Dijkstra, A*)
- *  → 300 × 4 = 1200 ô DOM trên trang.
+ *  → 960 × 4 = 3840 ô DOM trên trang.
  */
-export const ROWS = 15;
-export const COLS = 20;
+export const ROWS = 24;
+export const COLS = 40;
 
 /**
  * =====================================================

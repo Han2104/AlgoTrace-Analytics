@@ -22,7 +22,7 @@ export const runDijkstra = async (algoId, baseGrid, startNode, endNode, sleep, u
     if (r !== startNode.r || c !== startNode.c) {
       let html = null;
       if (r !== endNode.r || c !== endNode.c) {
-        html = `<span class="cost-text" style="font-size: 8px;">${cost}</span>`;
+        html = `<span class="cost-text" style="font-size: 7px;">${cost}</span>`;
       }
       updateNodeDOM(algoId, r, c, ['visited'], ['processing'], html);
     }
