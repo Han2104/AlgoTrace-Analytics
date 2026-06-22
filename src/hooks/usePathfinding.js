@@ -100,11 +100,13 @@ export const usePathfinding = () => {
     setIsPaused(false);
     pauseRef.current = false;
 
-    // ----- Hàm phụ: tô đường đi ngay lập tức (không animate từng ô) -----
+    // ----- Hàm phụ: animate đường đi từng ô một -----
     const animatePath = async (algoId, path, cost) => {
       setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], cost, status: 'Hoàn thành' } }));
       for (let i = path.length - 2; i > 0; i--) {
+        if (stopRef.current) return;
         updateNodeDOM(algoId, path[i].r, path[i].c, ['path']);
+        await sleep();
       }
     };
 
