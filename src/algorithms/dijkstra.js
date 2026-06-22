@@ -1,6 +1,10 @@
 import { getNeighbors, updateNodeDOM, ROWS, COLS } from '../utils/boardUtils';
 
 export const runDijkstra = async (algoId, baseGrid, startNode, endNode, sleep, updateStats) => {
+  const startTime = performance.now();
+  let nodesProcessedInFrame = 0;
+  const batchSize = 15;
+
   let pq = [{ r: startNode.r, c: startNode.c, cost: 0, path: [] }];
   let dist = Array(ROWS).fill().map(() => Array(COLS).fill(Infinity));
   let grid = baseGrid.map(row => row.map(n => ({...n, isVisited: false})));
@@ -17,7 +21,8 @@ export const runDijkstra = async (algoId, baseGrid, startNode, endNode, sleep, u
     grid[r][c].isVisited = true;
     
     visitedNodes++;
-    updateStats({ visited: visitedNodes, cost: cost, status: 'Đang chạy...' });
+    nodesProcessedInFrame++;
+    updateStats({ visited: visitedNodes, cost: cost, status: 'Đang chạy...', time: (performance.now() - startTime).toFixed(2) });
 
     if (r !== startNode.r || c !== startNode.c) {
       let html = null;
@@ -28,7 +33,9 @@ export const runDijkstra = async (algoId, baseGrid, startNode, endNode, sleep, u
     }
 
     if (r === endNode.r && c === endNode.c) {
-      return { path: [...path, {r, c}], cost: cost };
+      const elapsed = (performance.now() - startTime).toFixed(2);
+      updateStats({ visited: visitedNodes, cost: cost, status: 'Hoàn thành', time: elapsed });
+      return { path: [...path, {r, c}], cost: cost, time: elapsed };
     }
 
     const neighbors = getNeighbors(grid, r, c);
@@ -43,7 +50,11 @@ export const runDijkstra = async (algoId, baseGrid, startNode, endNode, sleep, u
         }
       }
     }
-    await sleep();
+
+    if (nodesProcessedInFrame % batchSize === 0) {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      nodesProcessedInFrame = 0;
+    }
   }
   return null;
 };

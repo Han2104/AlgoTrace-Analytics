@@ -1,6 +1,9 @@
 import { getNeighbors, updateNodeDOM } from '../utils/boardUtils';
 
 export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, updateStats) => {
+  const startTime = performance.now();
+  let nodesProcessedInFrame = 0;
+  const batchSize = 15;
   // Chỉ lưu tọa độ r, c và cost hiện tại. Tuyệt đối không lưu mảng path vào stack.
   let stack = [{ r: startNode.r, c: startNode.c, cost: 0 }];
   let visitedNodes = 0;
@@ -16,9 +19,9 @@ export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, update
     
     grid[r][c].isVisited = true;
     visitedNodes++;
-    
+    nodesProcessedInFrame++;
     // Cập nhật lên UI đúng chi phí thực tế thay vì hardcode 0
-    updateStats({ visited: visitedNodes, cost: cost, status: 'Đang chạy...' });
+    updateStats({ visited: visitedNodes, cost: cost, status: 'Đang chạy...', time: (performance.now() - startTime).toFixed(2) });
     
     if (r !== startNode.r || c !== startNode.c) {
       updateNodeDOM(algoId, r, c, ['visited'], ['processing']);
@@ -41,11 +44,16 @@ export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, update
       }
       finalPath.unshift({r: startNode.r, c: startNode.c});
 
+      const elapsed = (performance.now() - startTime).toFixed(2);
+      updateStats({ visited: visitedNodes, cost: pathCost, status: 'Hoàn thành', time: elapsed });
       // Trả về đúng object nguyên bản UI cần
-      return { path: finalPath, cost: pathCost };
+      return { path: finalPath, cost: pathCost, time: elapsed };
     }
     
-    await sleep();
+    if (nodesProcessedInFrame % batchSize === 0) {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      nodesProcessedInFrame = 0;
+    }
     
     const neighbors = getNeighbors(grid, r, c);
     let unvisitedCount = 0;
@@ -71,7 +79,10 @@ export const runDFS = async (algoId, baseGrid, startNode, endNode, sleep, update
     // Hiệu ứng lùi bước (backtrack) đặc trưng của DFS trên UI
     if (unvisitedCount === 0 && (r !== startNode.r || c !== startNode.c)) {
       updateNodeDOM(algoId, r, c, ['backtrack'], ['visited']);
-      await sleep();
+      if (nodesProcessedInFrame % batchSize === 0) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        nodesProcessedInFrame = 0;
+      }
     }
   }
   

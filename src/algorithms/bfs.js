@@ -27,6 +27,9 @@ import { getNeighbors, updateNodeDOM } from '../utils/boardUtils';
  *   The found path and total cost, or null if no path exists.
  */
 export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, updateStats) => {
+  const startTime = performance.now();
+  let nodesProcessedInFrame = 0;
+  const batchSize = 15;
   /* ------------------------------------------------------------------
    * 1. Initialisation
    *    The queue holds objects: { r, c, path[], cost }.
@@ -51,7 +54,8 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
 
     // ── Stats ──────────────────────────────────────────────────────
     visitedNodes++;
-    updateStats({ visited: visitedNodes, cost: 0, status: 'Đang chạy...' });
+    nodesProcessedInFrame++;
+    updateStats({ visited: visitedNodes, cost: 0, status: 'Đang chạy...', time: (performance.now() - startTime).toFixed(2) });
 
     // ── Visual feedback ────────────────────────────────────────────
     // Move this node from "processing" (pending) to "visited" (done).
@@ -61,8 +65,10 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
 
     // ── Goal check ─────────────────────────────────────────────────
     if (r === endNode.r && c === endNode.c) {
+      const elapsed = (performance.now() - startTime).toFixed(2);
+      updateStats({ visited: visitedNodes, cost: cost, status: 'Hoàn thành', time: elapsed });
       // Reconstruct the full path by appending the goal cell.
-      return { path: [...path, { r, c }], cost: cost };
+      return { path: [...path, { r, c }], cost: cost, time: elapsed };
     }
 
     // ── Neighbour exploration ──────────────────────────────────────
@@ -86,7 +92,10 @@ export const runBFS = async (algoId, baseGrid, startNode, endNode, sleep, update
     }
 
     // Yield control so the UI can re-render between iterations.
-    await sleep();
+    if (nodesProcessedInFrame % batchSize === 0) {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      nodesProcessedInFrame = 0;
+    }
   }
 
   /* ------------------------------------------------------------------
