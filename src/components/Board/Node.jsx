@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 
 export const Node = memo(({ 
-  id, isWall, isStart, isEnd, weight, 
+  id, r, c, isWall, isStart, isEnd, weight, 
   onMouseDown, onMouseEnter, onMouseUp 
 }) => {
   let extraClass = '';
@@ -14,8 +14,8 @@ export const Node = memo(({
     <div
       id={id}
       className={`node ${extraClass}`}
-      onMouseDown={onMouseDown}
-      onMouseEnter={onMouseEnter}
+      onMouseDown={() => onMouseDown(r, c)}
+      onMouseEnter={() => onMouseEnter(r, c)}
       onMouseUp={onMouseUp}
     >
       {weight > 1 && !isStart && !isEnd && !isWall && (

@@ -27,6 +27,50 @@ export const usePathfinding = () => {
   const pauseRef = useRef(false);        // Cờ tạm dừng — đọc trong sleep()
   const resolvePauseRef = useRef([]);    // Mảng chứa các hàm resolve của Promise tạm dừng
   const stopRef = useRef(false);         // Cờ dừng hẳn — đọc để thoát thuật toán
+  const pendingStatsRef = useRef({});
+  const statsFrameRef = useRef(null);
+
+  const flushPendingStats = useCallback(() => {
+    statsFrameRef.current = null;
+    const pendingStats = pendingStatsRef.current;
+    pendingStatsRef.current = {};
+
+    setStats(prev => {
+      let next = prev;
+      Object.entries(pendingStats).forEach(([algoId, newStats]) => {
+        next = { ...next, [algoId]: { ...next[algoId], ...newStats } };
+      });
+      return next;
+    });
+  }, []);
+
+  const updateAlgoStats = useCallback((algoId, newStats) => {
+    if (newStats.status !== 'Đang chạy...') {
+      if (statsFrameRef.current !== null) {
+        cancelAnimationFrame(statsFrameRef.current);
+        statsFrameRef.current = null;
+      }
+      const pendingForAlgo = pendingStatsRef.current[algoId] || {};
+      delete pendingStatsRef.current[algoId];
+      setStats(prev => ({
+        ...prev,
+        [algoId]: { ...prev[algoId], ...pendingForAlgo, ...newStats }
+      }));
+      if (Object.keys(pendingStatsRef.current).length > 0 && statsFrameRef.current === null) {
+        statsFrameRef.current = requestAnimationFrame(flushPendingStats);
+      }
+      return;
+    }
+
+    pendingStatsRef.current[algoId] = {
+      ...(pendingStatsRef.current[algoId] || {}),
+      ...newStats
+    };
+
+    if (statsFrameRef.current === null) {
+      statsFrameRef.current = requestAnimationFrame(flushPendingStats);
+    }
+  }, [flushPendingStats]);
 
   // ---------- CẬP NHẬT TỐC ĐỘ ----------
   // Đồng bộ cả speed (state -> UI) và speedRef (ref -> logic async)
@@ -67,6 +111,11 @@ export const usePathfinding = () => {
   // Dừng tất cả, xóa grid về trạng thái ban đầu
   const clearPath = useCallback(() => {
     stopRef.current = true;                // Báo tất cả thuật toán dừng ngay
+    pendingStatsRef.current = {};
+    if (statsFrameRef.current !== null) {
+      cancelAnimationFrame(statsFrameRef.current);
+      statsFrameRef.current = null;
+    }
     if (resolvePauseRef.current.length > 0) {
       resolvePauseRef.current.forEach(resolve => resolve()); // Giải phóng nếu đang pause
       resolvePauseRef.current = [];
@@ -87,6 +136,11 @@ export const usePathfinding = () => {
   const startAlgorithms = async () => {
     if (isRunning) return;                 // Chặn bấm Start khi đang chạy
     stopRef.current = false;               // Reset cờ dừng
+    pendingStatsRef.current = {};
+    if (statsFrameRef.current !== null) {
+      cancelAnimationFrame(statsFrameRef.current);
+      statsFrameRef.current = null;
+    }
     resetDOMGrids();                       // Xóa DOM cũ
 
     // Reset stats
@@ -102,7 +156,7 @@ export const usePathfinding = () => {
 
     // ----- Hàm phụ: animate đường đi từng ô một -----
     const animatePath = async (algoId, path, cost) => {
-      setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], cost, status: 'Hoàn thành' } }));
+      updateAlgoStats(algoId, { cost, status: 'Hoàn thành' });
       for (let i = path.length - 2; i > 0; i--) {
         if (stopRef.current) return;
         updateNodeDOM(algoId, path[i].r, path[i].c, ['path']);
@@ -113,7 +167,7 @@ export const usePathfinding = () => {
     // ----- Hàm phụ: callback để mỗi thuật toán tự cập nhật stats -----
     // Trả về 1 hàm update (setter) riêng cho từng algoId
     const updateStat = (algoId) => (newStats) => {
-      setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], ...newStats } }));
+      updateAlgoStats(algoId, newStats);
     };
 
     // ----- Hàm chạy 1 thuật toán (gọi runFunc tương ứng) -----
@@ -126,7 +180,7 @@ export const usePathfinding = () => {
           await animatePath(algoId, result.path, result.cost); // Tô đường đi
         } else {
           // Không tìm thấy đường
-          setStats(prev => ({ ...prev, [algoId]: { ...prev[algoId], status: 'Không tìm thấy' } }));
+          updateAlgoStats(algoId, { status: 'Không tìm thấy' });
         }
       } catch (e) {
         if (e.message !== 'CANCELLED') console.error(e); // Bỏ qua lỗi CANCELLED

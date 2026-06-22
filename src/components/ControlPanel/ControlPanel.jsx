@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ROWS, COLS } from '../../utils/boardUtils';
 
 export const ControlPanel = ({ 
@@ -7,9 +7,16 @@ export const ControlPanel = ({
   startAlgorithms, clearPath, 
   setBaseGrid, startNode, endNode 
 }) => {
+  const [activeScenario, setActiveScenario] = useState(null);
+
+  const scenarioButtonClass = (type, extraClass = '') => {
+    const activeClass = activeScenario === type ? ' active' : '';
+    return `btn outline${extraClass}${activeClass}`;
+  };
 
   const loadScenario = (type) => {
     if (isRunning) return;
+    setActiveScenario(type);
     clearPath();
     setBaseGrid(prev => {
       const newGrid = prev.map(row => row.map(node => ({ ...node, isWall: false, weight: 1 })));
@@ -87,6 +94,7 @@ export const ControlPanel = ({
 
   const clearBoard = () => {
     clearPath();
+    setActiveScenario(null);
     setBaseGrid(prev => {
       const newGrid = [...prev];
       for (let r = 0; r < ROWS; r++) {
@@ -126,13 +134,13 @@ export const ControlPanel = ({
 
       <div className="control-group generator-group">
         <label>Kịch bản</label>
-        <button onClick={() => loadScenario('maze')} disabled={isRunning} className="btn outline">Mê cung</button>
-        <button onClick={() => loadScenario('random')} disabled={isRunning} className="btn outline">Ngẫu nhiên</button>
-        <button onClick={() => loadScenario('social')} disabled={isRunning} className="btn outline">Mạng Xã hội</button>
-        <button onClick={() => loadScenario('traffic')} disabled={isRunning} className="btn outline">Trọng số</button>
-        <button onClick={() => loadScenario('warehouse')} disabled={isRunning} className="btn outline">Kho hàng</button>
-        <button onClick={() => loadScenario('efficiency')} disabled={isRunning} className="btn outline highlight">A* Tốc độ</button>
-        <button onClick={() => loadScenario('cost_battle')} disabled={isRunning} className="btn outline highlight">Dijkstra (Chi phí)</button>
+        <button onClick={() => loadScenario('maze')} disabled={isRunning} className={scenarioButtonClass('maze')}>Mê cung</button>
+        <button onClick={() => loadScenario('random')} disabled={isRunning} className={scenarioButtonClass('random')}>Ngẫu nhiên</button>
+        <button onClick={() => loadScenario('social')} disabled={isRunning} className={scenarioButtonClass('social')}>Mạng Xã hội</button>
+        <button onClick={() => loadScenario('traffic')} disabled={isRunning} className={scenarioButtonClass('traffic')}>Trọng số</button>
+        <button onClick={() => loadScenario('warehouse')} disabled={isRunning} className={scenarioButtonClass('warehouse')}>Kho hàng</button>
+        <button onClick={() => loadScenario('efficiency')} disabled={isRunning} className={scenarioButtonClass('efficiency', ' highlight')}>A* Tốc độ</button>
+        <button onClick={() => loadScenario('cost_battle')} disabled={isRunning} className={scenarioButtonClass('cost_battle', ' highlight')}>Dijkstra (Chi phí)</button>
       </div>
 
       <div className="legend">

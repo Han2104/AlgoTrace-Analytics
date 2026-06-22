@@ -114,7 +114,9 @@ export const updateNodeDOM = (algoId, r, c, classesToAdd, classesToRemove = [], 
   if (el) {
     if (classesToRemove.length) el.classList.remove(...classesToRemove);
     if (classesToAdd.length) el.classList.add(...classesToAdd);
-    if (htmlContent !== null) el.innerHTML = htmlContent;
+    if (htmlContent !== null && document.body.dataset.showCost === 'true') {
+      el.innerHTML = htmlContent;
+    }
   }
 };
 
